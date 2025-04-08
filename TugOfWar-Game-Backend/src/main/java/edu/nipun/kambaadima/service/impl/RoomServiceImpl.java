@@ -22,7 +22,7 @@ public class RoomServiceImpl implements RoomService {
 
     @PostConstruct
     public void init() {
-        initializeRoomsIfNeeded();
+//        initializeRoomsIfNeeded();
     }
 
     @Override
