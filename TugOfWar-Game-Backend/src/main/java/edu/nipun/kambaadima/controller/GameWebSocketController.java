@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.stereotype.Controller;
+import java.util.Map;
 
 @Controller
 @RequiredArgsConstructor
@@ -16,26 +17,64 @@ public class GameWebSocketController {
     @MessageMapping("/join")
     @SendTo("/topic/team-updates")
     public TeamDTO joinTeam(JoinRequest request) {
-        // Create user and attempt to join team
+
         UserDTO user = new UserDTO(request.getUsername());
         TeamDTO team = teamService.joinTeam(request.getTeamName(), user);
 
+
+        Map<String, Integer> teamCounts = teamService.getTeamMemberCounts();
+        for (Map.Entry<String, Integer> entry : teamCounts.entrySet()) {
+            team.setTeamCount(entry.getKey(), entry.getValue());
+        }
+
+        Map<String, Boolean> lockStatus = teamService.getTeamLockStatus();
+        for (Map.Entry<String, Boolean> entry : lockStatus.entrySet()) {
+            team.setTeamLockStatus(entry.getKey(), entry.getValue());
+        }
         return team;
     }
 
     @MessageMapping("/tap")
     @SendTo("/topic/team-updates")
     public TeamDTO tap(TapRequest request) {
-        // Increment tap count for the team
-        return teamService.tap(request.getTeamName());
+
+        TeamDTO team = teamService.tap(request.getTeamName());
+
+        Map<String, Integer> teamCounts = teamService.getTeamMemberCounts();
+        for (Map.Entry<String, Integer> entry : teamCounts.entrySet()) {
+            team.setTeamCount(entry.getKey(), entry.getValue());
+        }
+
+        Map<String, Boolean> lockStatus = teamService.getTeamLockStatus();
+        for (Map.Entry<String, Boolean> entry : lockStatus.entrySet()) {
+            team.setTeamLockStatus(entry.getKey(), entry.getValue());
+        }
+        return team;
     }
 
-    // Inner classes for request DTOs
+    @MessageMapping("/get-team-counts")
+    @SendTo("/topic/team-updates")
+    public TeamDTO getTeamCounts() {
+
+        TeamDTO teamDTO = new TeamDTO("Counts");
+        teamDTO.setMessage("Team counts update");
+
+        Map<String, Integer> teamCounts = teamService.getTeamMemberCounts();
+        for (Map.Entry<String, Integer> entry : teamCounts.entrySet()) {
+            teamDTO.setTeamCount(entry.getKey(), entry.getValue());
+        }
+
+        Map<String, Boolean> lockStatus = teamService.getTeamLockStatus();
+        for (Map.Entry<String, Boolean> entry : lockStatus.entrySet()) {
+            teamDTO.setTeamLockStatus(entry.getKey(), entry.getValue());
+        }
+        return teamDTO;
+    }
+
     public static class JoinRequest {
         private String username;
         private String teamName;
 
-        // Getters and setters
         public String getUsername() { return username; }
         public void setUsername(String username) { this.username = username; }
         public String getTeamName() { return teamName; }
@@ -45,7 +84,6 @@ public class GameWebSocketController {
     public static class TapRequest {
         private String teamName;
 
-        // Getters and setters
         public String getTeamName() { return teamName; }
         public void setTeamName(String teamName) { this.teamName = teamName; }
     }

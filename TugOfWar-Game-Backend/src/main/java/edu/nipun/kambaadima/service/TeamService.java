@@ -7,7 +7,8 @@ import java.util.Map;
 
 public interface TeamService {
     TeamDTO joinTeam(String teamName, UserDTO user);
+    TeamDTO tap(String teamName);
     Map<String, Integer> getTeamTapCounts();
     Map<String, Integer> getTeamMemberCounts();
-    TeamDTO tap(String teamName);
+    Map<String, Boolean> getTeamLockStatus();
 }

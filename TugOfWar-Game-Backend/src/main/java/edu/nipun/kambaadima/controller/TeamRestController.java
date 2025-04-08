@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/teams")
@@ -23,5 +24,13 @@ public class TeamRestController {
     @GetMapping("/team-members")
     public Map<String, Integer> getTeamMemberCounts() {
         return teamService.getTeamMemberCounts();
+    }
+
+    @GetMapping("/all-counts")
+    public Map<String, Object> getAllCounts() {
+        Map<String, Object> result = new HashMap<>();
+        result.put("tapCounts", teamService.getTeamTapCounts());
+        result.put("memberCounts", teamService.getTeamMemberCounts());
+        return result;
     }
 }

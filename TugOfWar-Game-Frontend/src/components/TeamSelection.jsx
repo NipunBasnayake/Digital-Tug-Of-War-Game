@@ -1,89 +1,84 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import './TeamSelection.css';
 
-function TeamSelection({ username, onJoinTeam, errorMessage }) {
+const TeamSelection = ({ username, onJoinTeam, teamCounts = {} }) => {
+  const [disabledButtons, setDisabledButtons] = useState({
+    'Team Blue': false,
+    'Team Red': false
+  });
+  
+  const blueCount = teamCounts['Team Blue'] || 0;
+  const redCount = teamCounts['Team Red'] || 0;
+  
+  const isTeamBlueFull = blueCount >= 4;
+  const isTeamRedFull = redCount >= 4;
+
+  useEffect(() => {
+    if (isTeamBlueFull && !disabledButtons['Team Blue']) {
+      const timer = setTimeout(() => {
+        setDisabledButtons(prev => ({
+          ...prev,
+          'Team Blue': true
+        }));
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+    
+    if (!isTeamBlueFull && disabledButtons['Team Blue']) {
+      setDisabledButtons(prev => ({
+        ...prev,
+        'Team Blue': false
+      }));
+    }
+  }, [isTeamBlueFull, disabledButtons]);
+  
+  useEffect(() => {
+    if (isTeamRedFull && !disabledButtons['Team Red']) {
+      const timer = setTimeout(() => {
+        setDisabledButtons(prev => ({
+          ...prev,
+          'Team Red': true
+        }));
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+    
+    if (!isTeamRedFull && disabledButtons['Team Red']) {
+      setDisabledButtons(prev => ({
+        ...prev,
+        'Team Red': false
+      }));
+    }
+  }, [isTeamRedFull, disabledButtons]);
+
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100vh',
-      textAlign: 'center',
-      backgroundColor: '#f0f2f5'
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        padding: '40px',
-        borderRadius: '10px',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-        width: '400px'
-      }}>
-        <h1 style={{ 
-          marginBottom: '20px', 
-          color: '#333' 
-        }}>
-          Welcome, {username}!
-        </h1>
-        <h2 style={{ 
-          marginBottom: '30px', 
-          color: '#666' 
-        }}>
-          Choose Your Team
-        </h2>
+    <div className="team-selection-container">
+      <div className="selection-card">
+        <h1 className="welcome-heading">Welcome, {username}!</h1>
+        <h2 className="choose-team-heading">Choose Your Team</h2>
         
-        {errorMessage && (
-          <p style={{ 
-            color: 'red', 
-            marginBottom: '20px',
-            fontWeight: 'bold'
-          }}>
-            {errorMessage}
-          </p>
-        )}
-        
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          gap: '20px' 
-        }}>
+        <div className="team-buttons-container">
           <button 
             onClick={() => onJoinTeam('Team Blue')}
-            style={{ 
-              backgroundColor: 'blue', 
-              color: 'white', 
-              padding: '15px 30px',
-              fontSize: '18px',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              transition: 'background-color 0.3s ease'
-            }}
-            onMouseOver={(e) => e.target.style.backgroundColor = 'darkblue'}
-            onMouseOut={(e) => e.target.style.backgroundColor = 'blue'}
+            disabled={disabledButtons['Team Blue']}
+            className={`team-button blue-team ${disabledButtons['Team Blue'] ? 'disabled' : ''}`}
           >
-            Join Team Blue
+            {disabledButtons['Team Blue'] ? 'Team Blue Full (4/4)' : `Join Team Blue (${blueCount}/4)`}
           </button>
+          
           <button 
             onClick={() => onJoinTeam('Team Red')}
-            style={{ 
-              backgroundColor: 'red', 
-              color: 'white', 
-              padding: '15px 30px',
-              fontSize: '18px',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              transition: 'background-color 0.3s ease'
-            }}
-            onMouseOver={(e) => e.target.style.backgroundColor = 'darkred'}
-            onMouseOut={(e) => e.target.style.backgroundColor = 'red'}
+            disabled={disabledButtons['Team Red']}
+            className={`team-button red-team ${disabledButtons['Team Red'] ? 'disabled' : ''}`}
           >
-            Join Team Red
+            {disabledButtons['Team Red'] ? 'Team Red Full (4/4)' : `Join Team Red (${redCount}/4)`}
           </button>
         </div>
       </div>
     </div>
   );
-}
+};
 
 export default TeamSelection;
