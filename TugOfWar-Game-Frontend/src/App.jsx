@@ -14,11 +14,9 @@ function App() {
   const [stompClient, setStompClient] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
 
-  // Store team members separately for each team
   const [blueTeamMembers, setBlueTeamMembers] = useState([]);
   const [redTeamMembers, setRedTeamMembers] = useState([]);
   
-  // Current team's members (based on selected team)
   const [teamMembers, setTeamMembers] = useState([]);
   
   const [teamTapCounts, setTeamTapCounts] = useState({
@@ -42,7 +40,6 @@ function App() {
   const [errorMessage, setErrorMessage] = useState("");
   const [isTapping, setIsTapping] = useState(false);
 
-  // Set current team members when selected team changes
   useEffect(() => {
     if (selectedTeam === "Team Blue") {
       setTeamMembers(blueTeamMembers);
@@ -91,7 +88,6 @@ function App() {
     };
   }, [teamTapCounts, teamCounts, teamMembersCount]);
 
-  // Fetch team members from the server
   const fetchTeamMembers = useCallback(async () => {
     try {
       const protocol = window.location.protocol;
@@ -107,11 +103,9 @@ function App() {
       
       const data = await response.json();
       
-      // Initialize fixed-size arrays for both teams
       const blueMembers = Array(teamMembersCount).fill(null);
       const redMembers = Array(teamMembersCount).fill(null);
       
-      // Fill in blue team members
       if (data["Team Blue"]) {
         data["Team Blue"].forEach((member, index) => {
           if (index < teamMembersCount && member) {
@@ -120,7 +114,6 @@ function App() {
         });
       }
       
-      // Fill in red team members
       if (data["Team Red"]) {
         data["Team Red"].forEach((member, index) => {
           if (index < teamMembersCount && member) {
@@ -129,11 +122,9 @@ function App() {
         });
       }
       
-      // Update team members state
       setBlueTeamMembers(blueMembers);
       setRedTeamMembers(redMembers);
       
-      // Update current team's members if applicable
       if (selectedTeam === "Team Blue") {
         setTeamMembers(blueMembers);
       } else if (selectedTeam === "Team Red") {
@@ -188,7 +179,6 @@ function App() {
       
       setIsGameCreated(data.isGameCreated || false);
       
-      // After getting game state, fetch team members
       fetchTeamMembers();
       
     } catch (error) {
@@ -231,19 +221,15 @@ function App() {
           try {
             const teamUpdate = JSON.parse(message.body);
 
-            // Handle team members update based on team name
             if (teamUpdate.members) {
-              // Create an array of fixed size
               const fixedMembers = Array(teamMembersCount).fill(null);
               
-              // Fill in only the non-null members from the update
               teamUpdate.members.forEach((member, index) => {
                 if (member !== null) {
                   fixedMembers[index] = member;
                 }
               });
               
-              // Update the appropriate team's members
               if (teamUpdate.teamName === "Team Blue") {
                 setBlueTeamMembers(fixedMembers);
                 if (selectedTeam === "Team Blue") {
@@ -287,7 +273,7 @@ function App() {
                 if (!isNaN(newSize)) {
                   setTeamMembersCount(newSize);
                   setIsGameCreated(true);
-                  fetchTeamMembers(); // Refetch team members after size change
+                  fetchTeamMembers();
                   console.log(`Maximum team size updated to ${newSize}`);
                 }
               }
@@ -315,7 +301,6 @@ function App() {
               
               if (teamUpdate.message.includes("left the team") || 
                   teamUpdate.message.includes("joined")) {
-                // Refetch team members to ensure we have accurate data
                 fetchTeamMembers();
               }
             }
@@ -439,7 +424,6 @@ function App() {
     setUsernameInput(e.target.value);
   };
 
-  // Username Entry Screen
   if (!username) {
     return (
       <div className="app-container">
@@ -465,7 +449,6 @@ function App() {
     );
   }
 
-  // Team Selection Screen
   if (!selectedTeam) {
     const blueCount = teamCounts["Team Blue"] || 0;
     const redCount = teamCounts["Team Red"] || 0;
@@ -525,7 +508,6 @@ function App() {
     );
   }
 
-  // Game Room Screen
   const teamColorMain = selectedTeam === "Team Blue" ? "#044C91" : "#8D153A";
   const teamColorDark = selectedTeam === "Team Blue" ? "#023871" : "#701230";
 

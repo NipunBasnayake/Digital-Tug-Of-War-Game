@@ -1,0 +1,240 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #333;
+    line-height: 1.5;
+    margin: 0;
+    padding: 0;
+    background-color: #f5f5f5;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.header h1 {
+    font-size: 24px;
+    font-weight: bold;
+    margin: 0;
+}
+
+.alert {
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    display: none;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.alert-error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.card {
+    background-color: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    margin-bottom: 24px;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.card-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+}
+
+.card-description {
+    color: #666;
+    margin: 4px 0 0 0;
+}
+
+.icon {
+    width: 24px;
+    height: 24px;
+}
+
+.icon-red {
+    color: #dc3545;
+}
+
+.icon-blue {
+    color: #0d6efd;
+}
+
+.icon-green {
+    color: #198754;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.input-label {
+    font-weight: 500;
+    margin-right: 12px;
+}
+
+.input-number {
+    padding: 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    width: 80px;
+    text-align: center;
+}
+
+.btn {
+    display: block;
+    width: 100%;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-red {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-red:hover:not(:disabled) {
+    background-color: #c82333;
+}
+
+.btn-blue {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.btn-blue:hover:not(:disabled) {
+    background-color: #0b5ed7;
+}
+
+.btn-green {
+    background-color: #198754;
+    color: white;
+}
+
+.btn-green:hover:not(:disabled) {
+    background-color: #146c43;
+}
+
+.footer {
+    text-align: center;
+    color: #888;
+    margin-top: 32px;
+}
+
+.server-url {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+}
+
+.server-url label {
+    font-weight: 500;
+    margin-right: 10px;
+    min-width: 100px;
+}
+
+.server-url input {
+    flex-grow: 1;
+    padding: 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+}
+
+.game-status {
+    background-color: #f0f8ff;
+    border: 1px solid #b8daff;
+    border-radius: 4px;
+    padding: 16px;
+    margin-bottom: 24px;
+}
+
+.status-title {
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #0d6efd;
+}
+
+.status-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.status-item:last-child {
+    border-bottom: none;
+}
+
+.status-label {
+    font-weight: 500;
+}
+
+.status-value {
+    font-weight: 600;
+}
+
+.status-blue {
+    color: #044C91;
+}
+
+.status-red {
+    color: #8D153A;
+}
+
+.game-state {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-weight: 500;
+    text-align: center;
+}
+
+.game-active {
+    background-color: #d1e7dd;
+    color: #146c43;
+}
+
+.game-inactive {
+    background-color: #f8d7da;
+    color: #b02a37;
+}
