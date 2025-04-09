@@ -9,19 +9,18 @@ function App() {
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [stompClient, setStompClient] = useState(null);
   const [teamMembers, setTeamMembers] = useState([]);
-  const [tapCount, setTapCount] = useState(0);
   const [teamTapCounts, setTeamTapCounts] = useState({
     'Team Blue': 0,
     'Team Red': 0
   });
   const [errorMessage, setErrorMessage] = useState('');
   const [isConnected, setIsConnected] = useState(false);
-  
+
   const [teamCounts, setTeamCounts] = useState({
     'Team Blue': 0,
     'Team Red': 0
   });
-  
+
   const [lockStatus, setLockStatus] = useState({
     'Team Blue': false,
     'Team Red': false
@@ -32,6 +31,54 @@ function App() {
     'Team Red': false
   });
 
+  // Calculate game state based on the tug-of-war model
+  const calculateGameState = () => {
+    // Minimum required taps before winning is possible
+    const minimumRequiredTaps = 50;
+
+    // Get team counts
+    const blueTaps = teamTapCounts['Team Blue'] || 0;
+    const redTaps = teamTapCounts['Team Red'] || 0;
+
+    // Calculate valid taps for each team (after subtracting first 20)
+    const blueValidTaps = Math.max(0, blueTaps - 20);
+    const redValidTaps = Math.max(0, redTaps - 20);
+
+    // Total valid taps across both teams
+    const totalValidTaps = blueValidTaps + redValidTaps;
+
+    // Calculate the position of the divider
+    let dividerPosition = 50; // Default to middle
+
+    if (totalValidTaps > 0) {
+      dividerPosition = (blueValidTaps / totalValidTaps) * 100;
+    }
+
+    // Determine if game can be won yet (prevents early wins with few taps)
+    const canWin = totalValidTaps >= minimumRequiredTaps;
+
+    // Determine winner if applicable
+    let winner = null;
+
+    if (canWin) {
+      if (dividerPosition >= 75) {
+        winner = 'blue';
+      } else if (dividerPosition <= 25) {
+        winner = 'red';
+      }
+    }
+
+    // Return all relevant information
+    return {
+      blueValidTaps,
+      redValidTaps,
+      totalValidTaps,
+      dividerPosition,
+      winner,
+      canWin
+    };
+  };
+
   const handleRoomClose = useCallback(() => {
     setSelectedTeam(null);
   }, []);
@@ -39,13 +86,14 @@ function App() {
   // Fetch current tap counts
   const fetchTapCounts = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/teams/tap-counts');
-      
+      const url = 'b1e19d95aad8c771656cf52ab0db3754.loophole.site';
+      const response = await fetch(`http://${url}/api/teams/tap-counts`);
+
       if (!response.ok) {
         console.error('Failed to fetch tap counts');
         return;
       }
-      
+
       const data = await response.json();
       setTeamTapCounts(data);
     } catch (error) {
@@ -56,33 +104,32 @@ function App() {
   useEffect(() => {
     // Fetch tap counts initially and set up interval
     fetchTapCounts();
-    
+
     const tapCountsIntervalId = setInterval(() => {
       fetchTapCounts();
     }, 2000);
-    
+
     return () => clearInterval(tapCountsIntervalId);
   }, [fetchTapCounts]);
 
   useEffect(() => {
+    const url = 'b1e19d95aad8c771656cf52ab0db3754.loophole.site';
     const client = new Client({
-      brokerURL: 'ws://localhost:8080/ws/websocket',
+      brokerURL: `wss://${url}/ws/websocket`,
       onConnect: () => {
         console.log('Connected to WebSocket');
         setIsConnected(true);
-        
+
         client.subscribe('/topic/team-updates', (message) => {
           try {
             const teamUpdate = JSON.parse(message.body);
             console.log('Received team update:', teamUpdate);
-            
+
             if (teamUpdate.members) {
               setTeamMembers(teamUpdate.members);
             }
-            
+
             if (teamUpdate.tapCount !== undefined) {
-              setTapCount(teamUpdate.tapCount);
-              
               // Update specific team tap count
               if (teamUpdate.teamName) {
                 setTeamTapCounts(prev => ({
@@ -91,17 +138,17 @@ function App() {
                 }));
               }
             }
-            
+
             if (teamUpdate.teamCounts) {
               console.log('Received team counts:', teamUpdate.teamCounts);
               setTeamCounts(teamUpdate.teamCounts);
             }
-            
+
             if (teamUpdate.lockStatus) {
               console.log('Received lock status:', teamUpdate.lockStatus);
               setLockStatus(teamUpdate.lockStatus);
             }
-            
+
             if (teamUpdate.message) {
               if (teamUpdate.message === 'Team is full') {
                 alert('Sorry, this team is already full and locked. Please choose another team.');
@@ -112,10 +159,10 @@ function App() {
                 console.log(teamUpdate.message);
               }
             }
-            
-            if (teamUpdate.roomLocked && teamUpdate.members && 
-                teamUpdate.members.some(member => member.username === username)) {
-                  
+
+            if (teamUpdate.roomLocked && teamUpdate.members &&
+              teamUpdate.members.some(member => member.username === username)) {
+
               if (teamUpdate.message === 'Team is full') {
                 alert('This team has reached the maximum of 4 players and is locked!');
                 setSelectedTeam(null);
@@ -130,7 +177,7 @@ function App() {
           destination: '/app/get-team-counts',
           body: JSON.stringify({})
         });
-        
+
         // Get the latest tap counts
         fetchTapCounts();
       },
@@ -159,21 +206,21 @@ function App() {
     if (!stompClient || !isConnected || selectedTeam) {
       return;
     }
-    
+
     const intervalId = setInterval(() => {
       stompClient.publish({
         destination: '/app/get-team-counts',
         body: JSON.stringify({})
       });
     }, 3000);
-    
+
     return () => clearInterval(intervalId);
   }, [stompClient, isConnected, selectedTeam]);
 
   // Team selection buttons disabled status
   useEffect(() => {
     const isTeamBlueLocked = lockStatus['Team Blue'] || false;
-    
+
     if (isTeamBlueLocked && !disabledButtons['Team Blue']) {
       const timer = setTimeout(() => {
         setDisabledButtons(prev => ({
@@ -181,10 +228,10 @@ function App() {
           'Team Blue': true
         }));
       }, 1000);
-      
+
       return () => clearTimeout(timer);
     }
-    
+
     if (!isTeamBlueLocked && disabledButtons['Team Blue']) {
       setDisabledButtons(prev => ({
         ...prev,
@@ -192,10 +239,10 @@ function App() {
       }));
     }
   }, [lockStatus, disabledButtons]);
-  
+
   useEffect(() => {
     const isTeamRedLocked = lockStatus['Team Red'] || false;
-    
+
     if (isTeamRedLocked && !disabledButtons['Team Red']) {
       const timer = setTimeout(() => {
         setDisabledButtons(prev => ({
@@ -203,10 +250,10 @@ function App() {
           'Team Red': true
         }));
       }, 1000);
-      
+
       return () => clearTimeout(timer);
     }
-    
+
     if (!isTeamRedLocked && disabledButtons['Team Red']) {
       setDisabledButtons(prev => ({
         ...prev,
@@ -230,7 +277,7 @@ function App() {
           teamName: teamName
         })
       });
-      
+
       setSelectedTeam(teamName);
     } else {
       alert('WebSocket not connected. Please try again.');
@@ -260,30 +307,6 @@ function App() {
     setUsernameInput(e.target.value);
   };
 
-  // Calculate the position of the divider in the progress bar
-  // Starting at 50% and moving based on the difference between teams
-  const calculateProgressBarPosition = () => {
-    const blueValidTaps = Math.max(0, (teamTapCounts['Team Blue'] || 0) - 20);
-    const redValidTaps = Math.max(0, (teamTapCounts['Team Red'] || 0) - 20);
-    
-    // If no taps yet, start at 50%
-    if (blueValidTaps === 0 && redValidTaps === 0) {
-      return 50;
-    }
-    
-    // Calculate the difference and adjust the midpoint (50%)
-    const totalTaps = blueValidTaps + redValidTaps;
-    if (totalTaps === 0) return 50;
-    
-    const bluePercentage = (blueValidTaps / totalTaps) * 100;
-    
-    // Game is won when a team reaches 75% of the total taps
-    const winThreshold = 75;
-    const gameIsWon = bluePercentage >= winThreshold || bluePercentage <= (100 - winThreshold);
-    
-    return bluePercentage;
-  };
-
   // Username Entry Screen
   if (!username) {
     return (
@@ -291,8 +314,8 @@ function App() {
         <div className="welcome-container">
           <h1 className="app-title">Team Tapping Game</h1>
           <form onSubmit={handleUsernameSubmit} className="username-form">
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={usernameInput}
               onChange={handleUsernameChange}
               placeholder="Enter your username"
@@ -300,7 +323,7 @@ function App() {
               required
               minLength={2}
             />
-            <button 
+            <button
               type="submit"
               className="submit-button"
             >
@@ -323,17 +346,17 @@ function App() {
         <div className="selection-card">
           <h1 className="welcome-heading">Welcome, {username}!</h1>
           <h2 className="choose-team-heading">Choose Your Team</h2>
-          
+
           <div className="team-buttons-container">
-            <button 
+            <button
               onClick={() => handleJoinTeam('Team Blue')}
               disabled={disabledButtons['Team Blue']}
               className={`team-button blue-team ${disabledButtons['Team Blue'] ? 'disabled' : ''}`}
             >
               {disabledButtons['Team Blue'] ? 'Team Blue Full (4/4)' : `Join Team Blue (${blueCount}/4)`}
             </button>
-            
-            <button 
+
+            <button
               onClick={() => handleJoinTeam('Team Red')}
               disabled={disabledButtons['Team Red']}
               className={`team-button red-team ${disabledButtons['Team Red'] ? 'disabled' : ''}`}
@@ -341,33 +364,21 @@ function App() {
               {disabledButtons['Team Red'] ? 'Team Red Full (4/4)' : `Join Team Red (${redCount}/4)`}
             </button>
           </div>
-          
+
           <div className="team-selection-info">
-            <p>Join a team to start tapping! First team to reach 1000 valid taps wins the game.</p>
+            <p>Join a team to start tapping! First team to reach 75% of total taps wins!</p>
           </div>
         </div>
       </div>
     );
   }
 
-  // Game Room Screen
-  const teamColorMain = selectedTeam === 'Team Blue' ? '#044C91' : '#8D153A'; // Using Sri Lankan blue and maroon
+  const teamColorMain = selectedTeam === 'Team Blue' ? '#044C91' : '#8D153A';
   const teamColorDark = selectedTeam === 'Team Blue' ? '#023871' : '#701230';
 
-  // Calculate the progress bar position (percentage controlled by blue)
-  const progressPosition = calculateProgressBarPosition();
-  
-  // Calculate valid taps for each team
-  const blueValidTaps = Math.max(0, (teamTapCounts['Team Blue'] || 0) - 20);
-  const redValidTaps = Math.max(0, (teamTapCounts['Team Red'] || 0) - 20);
-  
-  // Calculate total taps
-  const totalTaps = blueValidTaps + redValidTaps;
-  
-  // Determine if game is won
-  const blueWon = progressPosition >= 75;
-  const redWon = progressPosition <= 25;
-  const gameOver = blueWon || redWon;
+  const gameState = calculateGameState();
+  const gameOver = gameState.winner !== null;
+  const winnerTeam = gameState.winner === 'blue' ? 'Team Blue' : 'Team Red';
 
   return (
     <div className="game-room-container">
@@ -381,15 +392,15 @@ function App() {
           <h2 className="section-title" style={{ color: teamColorMain }}>Team Members</h2>
           <ul className="members-list">
             {teamMembers.map((member) => (
-              <li 
+              <li
                 key={member.id}
                 className={`member-item ${member.username === username ? 'current-user' : ''}`}
-                style={{ 
+                style={{
                   backgroundColor: member.username === username ? teamColorMain : `${teamColorMain}30`,
                   color: member.username === username ? 'white' : teamColorDark
                 }}
               >
-                {member.username} 
+                {member.username}
                 {member.username === username ? ' (You)' : ''}
               </li>
             ))}
@@ -397,17 +408,17 @@ function App() {
         </div>
 
         <div className="tap-section">
-          <h2 className="section-title" style={{ color: teamColorMain }}>Your Team Tap Count</h2>
+          {/* <h2 className="section-title" style={{ color: teamColorMain }}>Your Team Tap Count</h2>
           <div className="tap-count" style={{ color: teamColorMain }}>
             {teamTapCounts[selectedTeam] || 0}
-          </div>
-          
-          <button 
+          </div> */}
+
+          <button
             onClick={handleTap}
             className="tap-button"
-            style={{ 
+            style={{
               backgroundColor: teamColorMain,
-              border: `3px solid #D9B310`, // Sri Lankan gold color border
+              border: `3px solid #D9B310`,
               opacity: gameOver ? 0.6 : 1,
               cursor: gameOver ? 'not-allowed' : 'pointer'
             }}
@@ -416,55 +427,56 @@ function App() {
             {gameOver ? 'GAME OVER' : 'TAP!'}
           </button>
         </div>
-        
-        {/* Percentage Progress Bar */}
+
         <div className="progress-section">
           <h2 className="progress-title">Team Battle Progress</h2>
-          
-          <div className="race-progress-container">
-            <div className="markers">
-              <span className="marker" style={{ left: '0%' }}>0%</span>
-              <span className="marker" style={{ left: '25%' }}>25%</span>
-              <span className="marker" style={{ left: '50%' }}>50%</span>
-              <span className="marker" style={{ left: '75%' }}>75%</span>
-              <span className="marker" style={{ left: '100%' }}>100%</span>
-            </div>
-            
-            <div className="progress-bar-container">
-              <div className="progress-divider" style={{ left: `${progressPosition}%` }}></div>
-              <div className="blue-side" style={{ width: `${progressPosition}%` }}></div>
-              <div className="red-side" style={{ width: `${100 - progressPosition}%` }}></div>
-            </div>
-            
-            <div className="team-indicators">
-              <div className="team-indicator blue">
-                <span className="indicator-color"></span>
-                <span className="team-name">Team Blue</span>
-                <span className="valid-count">{blueValidTaps} valid taps</span>
-                <span className="percentage">{totalTaps > 0 ? Math.round(blueValidTaps / totalTaps * 100) : 50}%</span>
+
+          <div className="battle-progress-container">
+            <div className="single-progress-container">
+
+              <div className="battle-bar-container">
+                <div
+                  className="blue-side"
+                  style={{ width: `${gameState.dividerPosition}%` }}
+                ></div>
+                <div
+                  className="red-side"
+                  style={{ width: `${100 - gameState.dividerPosition}%` }}
+                ></div>
+                <div
+                  className="progress-divider"
+                  style={{ left: `${gameState.dividerPosition}%` }}
+                ></div>
+
+                <div className="win-marker left"></div>
+                <div className="win-marker right"></div>
               </div>
-              
-              <div className="team-indicator red">
-                <span className="indicator-color"></span>
-                <span className="team-name">Team Red</span>
-                <span className="valid-count">{redValidTaps} valid taps</span>
-                <span className="percentage">{totalTaps > 0 ? Math.round(redValidTaps / totalTaps * 100) : 50}%</span>
+
+              <div className="progress-percentages">
+                <span className="blue-percentage">
+                  {(() => {
+                    if (gameState.totalValidTaps === 0) return "50%";
+                    return `${Math.round((gameState.blueValidTaps / gameState.totalValidTaps) * 100)}%`;
+                  })()}
+                </span>
+                <span className="red-percentage">
+                  {(() => {
+                    if (gameState.totalValidTaps === 0) return "50%";
+                    return `${Math.round((gameState.redValidTaps / gameState.totalValidTaps) * 100)}%`;
+                  })()}
+                </span>
               </div>
             </div>
+
+            {gameOver && (
+              <div className="winner-announcement" style={{
+                backgroundColor: gameState.winner === 'blue' ? '#044C91' : '#8D153A',
+                animation: 'pulse-background 1.5s infinite'
+              }}>
+                <h3>{winnerTeam} Wins!</h3>
+              </div>
+            )}
           </div>
-          
-          <div className="progress-info">
-            <p>First 20 taps don't count! First team to reach 75% of total taps wins!</p>
-          </div>
-          
-          {gameOver && (
-            <div className="winner-announcement" style={{ 
-              backgroundColor: blueWon ? '#044C91' : '#8D153A',
-              animation: 'pulse-background 1.5s infinite' 
-            }}>
-              <h3>{blueWon ? 'Team Blue' : 'Team Red'} Wins!</h3>
-            </div>
-          )}
         </div>
       </div>
     </div>
