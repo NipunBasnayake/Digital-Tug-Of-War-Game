@@ -2,7 +2,6 @@ package edu.nipun.kambaadima.controller;
 
 import edu.nipun.kambaadima.service.TeamService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,7 +11,7 @@ import java.util.HashMap;
 @RestController
 @RequestMapping("/api/teams")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+// Remove the @CrossOrigin annotation from here as we have centralized CORS configuration
 public class TeamRestController {
     private final TeamService teamService;
 

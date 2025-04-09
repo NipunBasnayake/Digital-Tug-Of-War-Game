@@ -38,7 +38,7 @@ public class TeamServiceImpl implements TeamService {
         team.setMessage(user.getUsername() + " joined " + teamName);
 
         if (team.getMembers().size() == MAX_TEAM_SIZE) {
-            team.setRoomLocked(true); // Lock the room when it reaches exactly 4 members
+            team.setRoomLocked(true);
             team.setMessage("Team " + teamName + " is now full and locked");
         }
 
