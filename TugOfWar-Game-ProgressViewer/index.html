@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Game Progress Viewer</title>
+    <link rel="stylesheet" href="styles.css"/>
+  </head>
+  <body>
+    <div class="progress-container">
+      <div id="connectionStatus" class="connection-status">
+        Connecting to WebSocket...
+      </div>
+      <div class="progress-bar">
+        <div id="blueSide" class="blue-side" style="width: 50%"></div>
+        <div id="redSide" class="red-side" style="width: 50%"></div>
+      </div>
+      <div class="progress-info">
+        <span id="bluePercentage">50%</span>
+        <span id="redPercentage">50%</span>
+      </div>
+      <div class="tap-counts">
+        <span>Blue Taps: <span id="blueTapCount">0</span></span>
+        <span>Red Taps: <span id="redTapCount">0</span></span>
+      </div>
+      <div id="gameStatus" class="game-status">Waiting for Game to Start</div>
+      <div id="winnerBanner" class="winner-banner">Winner: Team</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

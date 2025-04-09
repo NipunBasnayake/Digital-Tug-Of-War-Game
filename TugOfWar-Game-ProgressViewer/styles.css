@@ -1,0 +1,63 @@
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #f0f0f0;
+}
+.progress-container {
+    width: 80%;
+    max-width: 600px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+.progress-bar {
+    display: flex;
+    height: 50px;
+    width: 100%;
+}
+.blue-side {
+    background-color: #044C91;
+    height: 100%;
+    transition: width 0.3s ease;
+}
+.red-side {
+    background-color: #8D153A;
+    height: 100%;
+    transition: width 0.3s ease;
+}
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    background-color: #f8f9fa;
+}
+.game-status {
+    text-align: center;
+    padding: 10px;
+    font-weight: bold;
+}
+.winner-banner {
+    background-color: #28a745;
+    color: white;
+    text-align: center;
+    padding: 15px;
+    display: none;
+}
+.tap-counts {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    background-color: #e9ecef;
+    font-size: 0.9em;
+}
+.connection-status {
+    text-align: center;
+    padding: 10px;
+    background-color: #f8d7da;
+    color: #721c24;
+}
