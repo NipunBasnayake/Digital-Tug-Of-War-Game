@@ -1,195 +1,170 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Client } from '@stomp/stompjs';
-import './App.css';
+// Import required dependencies
+import React, { useState, useEffect, useCallback } from "react";
+import { Client } from "@stomp/stompjs";
+import "./App.css";
 
-// Main App Component
 function App() {
-  const [usernameInput, setUsernameInput] = useState('');
-  const [username, setUsername] = useState('');
+  const WS_URL = "8c0c-175-157-250-151.ngrok-free.app";
+  const teamMembersCount = 2;
+
+  // State management for user and connection
+  const [usernameInput, setUsernameInput] = useState("");
+  const [username, setUsername] = useState("");
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [stompClient, setStompClient] = useState(null);
-  const [teamMembers, setTeamMembers] = useState([]);
-  const [teamTapCounts, setTeamTapCounts] = useState({
-    'Team Blue': 0,
-    'Team Red': 0
-  });
-  const [errorMessage, setErrorMessage] = useState('');
   const [isConnected, setIsConnected] = useState(false);
 
+  // Team and game state management
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [teamTapCounts, setTeamTapCounts] = useState({
+    "Team Blue": 0,
+    "Team Red": 0,
+  });
   const [teamCounts, setTeamCounts] = useState({
-    'Team Blue': 0,
-    'Team Red': 0
+    "Team Blue": 0,
+    "Team Red": 0,
   });
-
   const [lockStatus, setLockStatus] = useState({
-    'Team Blue': false,
-    'Team Red': false
+    "Team Blue": false,
+    "Team Red": false,
+  });
+  const [disabledButtons, setDisabledButtons] = useState({
+    "Team Blue": false,
+    "Team Red": false,
   });
 
-  const [disabledButtons, setDisabledButtons] = useState({
-    'Team Blue': false,
-    'Team Red': false
-  });
+  // Additional state for tap button cooldown
+  const [lastTapTime, setLastTapTime] = useState(0);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isTapping, setIsTapping] = useState(false);
 
   // Calculate game state based on the tug-of-war model
   const calculateGameState = () => {
-    // Minimum required taps before winning is possible
     const minimumRequiredTaps = 50;
+    const blueTaps = teamTapCounts["Team Blue"] || 0;
+    const redTaps = teamTapCounts["Team Red"] || 0;
 
-    // Get team counts
-    const blueTaps = teamTapCounts['Team Blue'] || 0;
-    const redTaps = teamTapCounts['Team Red'] || 0;
+    // Check if teams are full
+    const blueTeamCount = teamCounts["Team Blue"] || 0;
+    const redTeamCount = teamCounts["Team Red"] || 0;
+    const bothTeamsFull =
+      blueTeamCount >= teamMembersCount && redTeamCount >= teamMembersCount;
 
-    // Calculate valid taps for each team (after subtracting first 20)
-    const blueValidTaps = Math.max(0, blueTaps - 20);
-    const redValidTaps = Math.max(0, redTaps - 20);
-
-    // Total valid taps across both teams
+    // Only count taps if both teams are full
+    const blueValidTaps = bothTeamsFull ? Math.max(0, blueTaps - 20) : 0;
+    const redValidTaps = bothTeamsFull ? Math.max(0, redTaps - 20) : 0;
     const totalValidTaps = blueValidTaps + redValidTaps;
 
-    // Calculate the position of the divider
-    let dividerPosition = 50; // Default to middle
-
+    let dividerPosition = 50;
     if (totalValidTaps > 0) {
       dividerPosition = (blueValidTaps / totalValidTaps) * 100;
     }
 
-    // Determine if game can be won yet (prevents early wins with few taps)
     const canWin = totalValidTaps >= minimumRequiredTaps;
-
-    // Determine winner if applicable
     let winner = null;
 
     if (canWin) {
       if (dividerPosition >= 75) {
-        winner = 'blue';
+        winner = "blue";
       } else if (dividerPosition <= 25) {
-        winner = 'red';
+        winner = "red";
       }
     }
 
-    // Return all relevant information
     return {
       blueValidTaps,
       redValidTaps,
       totalValidTaps,
       dividerPosition,
       winner,
-      canWin
+      canWin,
     };
   };
 
-  const handleRoomClose = useCallback(() => {
-    setSelectedTeam(null);
-  }, []);
-
-  // Fetch current tap counts
+  // WebSocket and data fetching logic
   const fetchTapCounts = useCallback(async () => {
     try {
-      const url = 'b1e19d95aad8c771656cf52ab0db3754.loophole.site';
-      const response = await fetch(`http://${url}/api/teams/tap-counts`);
+      const protocol = window.location.protocol;
+      const response = await fetch(
+        `${protocol}//${protocol === "https:" ? WS_URL : "localhost:8080"
+        }/api/teams/tap-counts`
+      );
 
       if (!response.ok) {
-        console.error('Failed to fetch tap counts');
+        console.error("Failed to fetch tap counts");
         return;
       }
-
       const data = await response.json();
       setTeamTapCounts(data);
     } catch (error) {
-      console.error('Error fetching tap counts:', error);
+      console.error("Error fetching tap counts:", error);
     }
   }, []);
 
+  // WebSocket connection and event handling
   useEffect(() => {
-    // Fetch tap counts initially and set up interval
-    fetchTapCounts();
+    const protocol = window.location.protocol;
 
-    const tapCountsIntervalId = setInterval(() => {
-      fetchTapCounts();
-    }, 2000);
-
-    return () => clearInterval(tapCountsIntervalId);
-  }, [fetchTapCounts]);
-
-  useEffect(() => {
-    const url = 'b1e19d95aad8c771656cf52ab0db3754.loophole.site';
     const client = new Client({
-      brokerURL: `wss://${url}/ws/websocket`,
+      brokerURL: `${protocol === "https:" ? "wss:" : "ws:"}//${protocol === "https:" ? WS_URL : "localhost:8080"
+        }/ws/websocket`,
+
       onConnect: () => {
-        console.log('Connected to WebSocket');
         setIsConnected(true);
 
-        client.subscribe('/topic/team-updates', (message) => {
+        client.subscribe("/topic/team-updates", (message) => {
           try {
             const teamUpdate = JSON.parse(message.body);
-            console.log('Received team update:', teamUpdate);
 
             if (teamUpdate.members) {
               setTeamMembers(teamUpdate.members);
             }
 
             if (teamUpdate.tapCount !== undefined) {
-              // Update specific team tap count
               if (teamUpdate.teamName) {
-                setTeamTapCounts(prev => ({
+                setTeamTapCounts((prev) => ({
                   ...prev,
-                  [teamUpdate.teamName]: teamUpdate.tapCount
+                  [teamUpdate.teamName]: teamUpdate.tapCount,
                 }));
               }
             }
 
             if (teamUpdate.teamCounts) {
-              console.log('Received team counts:', teamUpdate.teamCounts);
               setTeamCounts(teamUpdate.teamCounts);
             }
 
             if (teamUpdate.lockStatus) {
-              console.log('Received lock status:', teamUpdate.lockStatus);
               setLockStatus(teamUpdate.lockStatus);
             }
 
             if (teamUpdate.message) {
-              if (teamUpdate.message === 'Team is full') {
-                alert('Sorry, this team is already full and locked. Please choose another team.');
-                setSelectedTeam(null);
-              } else if (teamUpdate.message.includes("now full and locked")) {
-                console.log("Room is now locked");
-              } else {
-                console.log(teamUpdate.message);
-              }
-            }
-
-            if (teamUpdate.roomLocked && teamUpdate.members &&
-              teamUpdate.members.some(member => member.username === username)) {
-
-              if (teamUpdate.message === 'Team is full') {
-                alert('This team has reached the maximum of 4 players and is locked!');
+              if (teamUpdate.message === "Team is full") {
+                alert(
+                  "Sorry, this team is already full and locked. Please choose another team."
+                );
                 setSelectedTeam(null);
               }
             }
           } catch (error) {
-            console.error('Error parsing WebSocket message:', error);
+            console.error("Error parsing WebSocket message:", error);
           }
         });
 
         client.publish({
-          destination: '/app/get-team-counts',
-          body: JSON.stringify({})
+          destination: "/app/get-team-counts",
+          body: JSON.stringify({}),
         });
 
-        // Get the latest tap counts
         fetchTapCounts();
       },
       onStompError: (frame) => {
-        console.error('Broker reported error: ' + frame.headers['message']);
-        console.error('Additional details: ' + frame.body);
+        console.error("Broker reported error: " + frame.headers["message"]);
         setIsConnected(false);
       },
       onWebSocketError: (error) => {
-        console.error('WebSocket connection error:', error);
+        console.error("WebSocket connection error:", error);
         setIsConnected(false);
-      }
+      },
     });
 
     client.activate();
@@ -202,99 +177,69 @@ function App() {
     };
   }, [username, fetchTapCounts]);
 
-  useEffect(() => {
-    if (!stompClient || !isConnected || selectedTeam) {
+  // Team join and tap handlers
+  const handleJoinTeam = useCallback(
+    (teamName) => {
+      if (stompClient && isConnected && username) {
+        if (lockStatus[teamName]) {
+          alert(
+            `Sorry, ${teamName} is already full and locked. Please choose another team.`
+          );
+          return;
+        }
+
+        stompClient.publish({
+          destination: "/app/join",
+          body: JSON.stringify({
+            username: username,
+            teamName: teamName,
+          }),
+        });
+
+        setSelectedTeam(teamName);
+      } else {
+        alert("WebSocket not connected. Please try again.");
+      }
+    },
+    [stompClient, isConnected, username, lockStatus]
+  );
+
+  const handleTap = useCallback(() => {
+    const currentTime = Date.now();
+
+    // Prevent multiple rapid taps
+    if (isTapping) return;
+
+    // Limit tap to once per second
+    if (currentTime - lastTapTime < 1000) {
       return;
     }
 
-    const intervalId = setInterval(() => {
-      stompClient.publish({
-        destination: '/app/get-team-counts',
-        body: JSON.stringify({})
-      });
-    }, 3000);
+    // Set tapping state to prevent multiple taps
+    setIsTapping(true);
 
-    return () => clearInterval(intervalId);
-  }, [stompClient, isConnected, selectedTeam]);
+    // Add a delay before sending the tap
+    const tapDelay = setTimeout(() => {
+      if (stompClient && isConnected && selectedTeam) {
+        stompClient.publish({
+          destination: "/app/tap",
+          body: JSON.stringify({
+            teamName: selectedTeam,
+          }),
+        });
 
-  // Team selection buttons disabled status
-  useEffect(() => {
-    const isTeamBlueLocked = lockStatus['Team Blue'] || false;
-
-    if (isTeamBlueLocked && !disabledButtons['Team Blue']) {
-      const timer = setTimeout(() => {
-        setDisabledButtons(prev => ({
-          ...prev,
-          'Team Blue': true
-        }));
-      }, 1000);
-
-      return () => clearTimeout(timer);
-    }
-
-    if (!isTeamBlueLocked && disabledButtons['Team Blue']) {
-      setDisabledButtons(prev => ({
-        ...prev,
-        'Team Blue': false
-      }));
-    }
-  }, [lockStatus, disabledButtons]);
-
-  useEffect(() => {
-    const isTeamRedLocked = lockStatus['Team Red'] || false;
-
-    if (isTeamRedLocked && !disabledButtons['Team Red']) {
-      const timer = setTimeout(() => {
-        setDisabledButtons(prev => ({
-          ...prev,
-          'Team Red': true
-        }));
-      }, 1000);
-
-      return () => clearTimeout(timer);
-    }
-
-    if (!isTeamRedLocked && disabledButtons['Team Red']) {
-      setDisabledButtons(prev => ({
-        ...prev,
-        'Team Red': false
-      }));
-    }
-  }, [lockStatus, disabledButtons]);
-
-  const handleJoinTeam = useCallback((teamName) => {
-    if (stompClient && isConnected && username) {
-      if (lockStatus[teamName]) {
-        alert(`Sorry, ${teamName} is already full and locked. Please choose another team.`);
-        return;
+        setLastTapTime(currentTime);
       }
 
-      // Publish join team message
-      stompClient.publish({
-        destination: '/app/join',
-        body: JSON.stringify({
-          username: username,
-          teamName: teamName
-        })
-      });
+      // Reset tapping state
+      setIsTapping(false);
+    }, 250); // 250ms delay, adjust as needed
 
-      setSelectedTeam(teamName);
-    } else {
-      alert('WebSocket not connected. Please try again.');
-    }
-  }, [stompClient, isConnected, username, lockStatus]);
+    // Cleanup function to clear timeout if component unmounts
+    return () => clearTimeout(tapDelay);
+  }, [stompClient, isConnected, selectedTeam, lastTapTime, isTapping]);
 
-  const handleTap = useCallback(() => {
-    if (stompClient && isConnected && selectedTeam) {
-      stompClient.publish({
-        destination: '/app/tap',
-        body: JSON.stringify({
-          teamName: selectedTeam
-        })
-      });
-    }
-  }, [stompClient, isConnected, selectedTeam]);
-
+  // Username submission handlers
   const handleUsernameSubmit = (e) => {
     e.preventDefault();
     const trimmedUsername = usernameInput.trim();
@@ -323,10 +268,7 @@ function App() {
               required
               minLength={2}
             />
-            <button
-              type="submit"
-              className="submit-button"
-            >
+            <button type="submit" className="submit-button">
               Set Username
             </button>
             {errorMessage && <p className="error-message">{errorMessage}</p>}
@@ -338,8 +280,8 @@ function App() {
 
   // Team Selection Screen
   if (!selectedTeam) {
-    const blueCount = teamCounts['Team Blue'] || 0;
-    const redCount = teamCounts['Team Red'] || 0;
+    const blueCount = teamCounts["Team Blue"] || 0;
+    const redCount = teamCounts["Team Red"] || 0;
 
     return (
       <div className="team-selection-container">
@@ -349,82 +291,121 @@ function App() {
 
           <div className="team-buttons-container">
             <button
-              onClick={() => handleJoinTeam('Team Blue')}
-              disabled={disabledButtons['Team Blue']}
-              className={`team-button blue-team ${disabledButtons['Team Blue'] ? 'disabled' : ''}`}
+              onClick={() => handleJoinTeam("Team Blue")}
+              disabled={disabledButtons["Team Blue"]}
+              className={`team-button blue-team ${disabledButtons["Team Blue"] ? "disabled" : ""
+                }`}
             >
-              {disabledButtons['Team Blue'] ? 'Team Blue Full (4/4)' : `Join Team Blue (${blueCount}/4)`}
+              {disabledButtons["Team Blue"]
+                ? `Team Blue Full (${teamMembersCount}/${teamMembersCount})`
+                : `Join Team Blue (${blueCount}/${teamMembersCount})`}
             </button>
 
             <button
-              onClick={() => handleJoinTeam('Team Red')}
-              disabled={disabledButtons['Team Red']}
-              className={`team-button red-team ${disabledButtons['Team Red'] ? 'disabled' : ''}`}
+              onClick={() => handleJoinTeam("Team Red")}
+              disabled={disabledButtons["Team Red"]}
+              className={`team-button red-team ${disabledButtons["Team Red"] ? "disabled" : ""
+                }`}
             >
-              {disabledButtons['Team Red'] ? 'Team Red Full (4/4)' : `Join Team Red (${redCount}/4)`}
+              {disabledButtons["Team Red"]
+                ? `Team Red Full (${teamMembersCount}/${teamMembersCount})`
+                : `Join Team Red (${redCount}/${teamMembersCount})`}
             </button>
           </div>
 
           <div className="team-selection-info">
-            <p>Join a team to start tapping! First team to reach 75% of total taps wins!</p>
+            <p>
+              Join a team to start tapping! First team to reach 75% of total
+              taps wins!
+            </p>
           </div>
         </div>
       </div>
     );
   }
 
-  const teamColorMain = selectedTeam === 'Team Blue' ? '#044C91' : '#8D153A';
-  const teamColorDark = selectedTeam === 'Team Blue' ? '#023871' : '#701230';
+  // Game Room Screen
+  const teamColorMain = selectedTeam === "Team Blue" ? "#044C91" : "#8D153A";
+  const teamColorDark = selectedTeam === "Team Blue" ? "#023871" : "#701230";
 
   const gameState = calculateGameState();
   const gameOver = gameState.winner !== null;
-  const winnerTeam = gameState.winner === 'blue' ? 'Team Blue' : 'Team Red';
+  const winnerTeam = gameState.winner === "blue" ? "Team Blue" : "Team Red";
+
+  // Check if both rooms are full
+  const blueTeamFull = teamCounts["Team Blue"] >= teamMembersCount;
+  const redTeamFull = teamCounts["Team Red"] >= teamMembersCount;
+  const bothTeamsFullAndReady = blueTeamFull && redTeamFull;
+
+  const currentMembers = teamMembers || [];
+  const emptySlots = Math.max(0, teamMembersCount - currentMembers.length);
+  const emptySlotElements = Array(emptySlots)
+    .fill()
+    .map((_, index) => (
+      <li key={`empty-${index}`} className="member-item empty-slot">
+        Empty Slot
+      </li>
+    ));
 
   return (
     <div className="game-room-container">
       <div className="game-card">
         <div className="team-header" style={{ backgroundColor: teamColorMain }}>
           <h1 className="team-title">{selectedTeam} Game Room</h1>
-          <span className="member-count">{teamMembers.length}/4 Players</span>
+          <span className="member-count">
+            {teamMembers.length}/{teamMembersCount} Players
+          </span>
         </div>
 
         <div className="members-section">
-          <h2 className="section-title" style={{ color: teamColorMain }}>Team Members</h2>
+          <h2 className="section-title" style={{ color: teamColorMain }}>
+            Team Members
+          </h2>
           <ul className="members-list">
             {teamMembers.map((member) => (
               <li
                 key={member.id}
-                className={`member-item ${member.username === username ? 'current-user' : ''}`}
+                className={`member-item ${member.username === username ? "current-user" : ""
+                  }`}
                 style={{
-                  backgroundColor: member.username === username ? teamColorMain : `${teamColorMain}30`,
-                  color: member.username === username ? 'white' : teamColorDark
+                  backgroundColor:
+                    member.username === username
+                      ? teamColorMain
+                      : `${teamColorMain}30`,
+                  color: member.username === username ? "white" : teamColorDark,
                 }}
               >
                 {member.username}
-                {member.username === username ? ' (You)' : ''}
+                {member.username === username ? " (You)" : ""}
               </li>
             ))}
+            {emptySlotElements}
           </ul>
         </div>
 
         <div className="tap-section">
-          {/* <h2 className="section-title" style={{ color: teamColorMain }}>Your Team Tap Count</h2>
-          <div className="tap-count" style={{ color: teamColorMain }}>
-            {teamTapCounts[selectedTeam] || 0}
-          </div> */}
-
           <button
             onClick={handleTap}
             className="tap-button"
             style={{
               backgroundColor: teamColorMain,
               border: `3px solid #D9B310`,
-              opacity: gameOver ? 0.6 : 1,
-              cursor: gameOver ? 'not-allowed' : 'pointer'
+              opacity:
+                gameOver || !bothTeamsFullAndReady || isTapping ? 0.6 : 1,
+              cursor:
+                gameOver || !bothTeamsFullAndReady || isTapping
+                  ? "not-allowed"
+                  : "pointer",
             }}
-            disabled={gameOver}
+            disabled={gameOver || !bothTeamsFullAndReady || isTapping}
           >
-            {gameOver ? 'GAME OVER' : 'TAP!'}
+            {gameOver
+              ? "GAME OVER"
+              : !bothTeamsFullAndReady
+                ? "WAITING FOR FULL TEAMS..."
+                : isTapping
+                  ? "TAPPING..."
+                  : "TAP!"}
           </button>
         </div>
 
@@ -433,7 +414,6 @@ function App() {
 
           <div className="battle-progress-container">
             <div className="single-progress-container">
-
               <div className="battle-bar-container">
                 <div
                   className="blue-side"
@@ -456,23 +436,30 @@ function App() {
                 <span className="blue-percentage">
                   {(() => {
                     if (gameState.totalValidTaps === 0) return "50%";
-                    return `${Math.round((gameState.blueValidTaps / gameState.totalValidTaps) * 100)}%`;
+                    return `${Math.round(
+                      (gameState.blueValidTaps / gameState.totalValidTaps) * 100
+                    )}%`;
                   })()}
                 </span>
                 <span className="red-percentage">
                   {(() => {
                     if (gameState.totalValidTaps === 0) return "50%";
-                    return `${Math.round((gameState.redValidTaps / gameState.totalValidTaps) * 100)}%`;
+                    return `${Math.round(
+                      (gameState.redValidTaps / gameState.totalValidTaps) * 100
+                    )}%`;
                   })()}
                 </span>
               </div>
             </div>
-
             {gameOver && (
-              <div className="winner-announcement" style={{
-                backgroundColor: gameState.winner === 'blue' ? '#044C91' : '#8D153A',
-                animation: 'pulse-background 1.5s infinite'
-              }}>
+              <div
+                className="winner-announcement"
+                style={{
+                  backgroundColor:
+                    gameState.winner === "blue" ? "#044C91" : "#8D153A",
+                  animation: "pulse-background 1.5s infinite",
+                }}
+              >
                 <h3>{winnerTeam} Wins!</h3>
               </div>
             )}

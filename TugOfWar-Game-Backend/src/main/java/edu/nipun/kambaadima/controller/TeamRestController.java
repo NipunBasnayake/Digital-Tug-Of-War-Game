@@ -11,7 +11,6 @@ import java.util.HashMap;
 @RestController
 @RequestMapping("/api/teams")
 @RequiredArgsConstructor
-// Remove the @CrossOrigin annotation from here as we have centralized CORS configuration
 public class TeamRestController {
     private final TeamService teamService;
 
