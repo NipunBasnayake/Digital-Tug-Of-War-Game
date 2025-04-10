@@ -1,5 +1,4 @@
 package edu.nipun.kambaadima.controller;
-
 import edu.nipun.kambaadima.service.TeamService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,6 +28,13 @@ public class TeamRestController {
         Map<String, Object> result = new HashMap<>();
         result.put("tapCounts", teamService.getTeamTapCounts());
         result.put("memberCounts", teamService.getTeamMemberCounts());
+        result.put("lockStatus", teamService.getTeamLockStatus());
+        result.put("maxTeamSize", teamService.getMaxTeamSize());
         return result;
+    }
+
+    @GetMapping("/all-data")
+    public Map<String, Object> getAllTeamData() {
+        return teamService.getAllTeamData();
     }
 }

@@ -3,10 +3,11 @@ import { Client } from "@stomp/stompjs";
 import "./App.css";
 
 function App() {
-  const WS_URL = "f2b9-157-157-116-180.ngrok-free.app";
   
-  const [teamMembersCount, setTeamMembersCount] = useState(0);
-  const [isGameCreated, setIsGameCreated] = useState(false);
+  const WS_URL = "fly-allowing-oddly.ngrok-free.app";
+  
+  const [teamMembersCount, setTeamMembersCount] = useState(2);
+  const [isGameCreated, setIsGameCreated] = useState(true);
 
   const [usernameInput, setUsernameInput] = useState("");
   const [username, setUsername] = useState("");
@@ -32,24 +33,18 @@ function App() {
     "Team Red": false,
   });
   const [disabledButtons, setDisabledButtons] = useState({
-    "Team Blue": true,
-    "Team Red": true,
+    "Team Blue": false,
+    "Team Red": false,
   });
 
   const [lastTapTime, setLastTapTime] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [isTapping, setIsTapping] = useState(false);
 
-  useEffect(() => {
-    if (selectedTeam === "Team Blue") {
-      setTeamMembers(blueTeamMembers);
-    } else if (selectedTeam === "Team Red") {
-      setTeamMembers(redTeamMembers);
-    }
-  }, [selectedTeam, blueTeamMembers, redTeamMembers]);
-
+  // Updated calculateGameState function
   const calculateGameState = useCallback(() => {
-    const minimumRequiredTaps = 50;
+    const minimumRequiredTaps = 100;
+    const initialTeamTaps = 0;
     const blueTaps = teamTapCounts["Team Blue"] || 0;
     const redTaps = teamTapCounts["Team Red"] || 0;
 
@@ -58,13 +53,28 @@ function App() {
     const bothTeamsFull =
       blueTeamCount >= teamMembersCount && redTeamCount >= teamMembersCount;
 
-    const blueValidTaps = bothTeamsFull ? Math.max(0, blueTaps - 20) : 0;
-    const redValidTaps = bothTeamsFull ? Math.max(0, redTaps - 20) : 0;
-    const totalValidTaps = blueValidTaps + redValidTaps;
+    // Calculate valid taps considering initial taps and team fullness
+    const blueValidTaps = bothTeamsFull 
+      ? Math.max(0, blueTaps - initialTeamTaps) 
+      : 0;
+    const redValidTaps = bothTeamsFull 
+      ? Math.max(0, redTaps - initialTeamTaps) 
+      : 0;
 
+    // Divide team taps by 5 when total reaches 100
+    const blueScaledTaps = bothTeamsFull 
+      ? Math.floor(blueValidTaps / 5) 
+      : 0;
+    const redScaledTaps = bothTeamsFull 
+      ? Math.floor(redValidTaps / 5) 
+      : 0;
+
+    const totalValidTaps = blueScaledTaps + redScaledTaps;
+
+    // Calculate divider position with smooth movement
     let dividerPosition = 50;
     if (totalValidTaps > 0) {
-      dividerPosition = (blueValidTaps / totalValidTaps) * 100;
+      dividerPosition = (blueScaledTaps / totalValidTaps) * 100;
     }
 
     const canWin = totalValidTaps >= minimumRequiredTaps;
@@ -79,8 +89,8 @@ function App() {
     }
 
     return {
-      blueValidTaps,
-      redValidTaps,
+      blueValidTaps: blueScaledTaps,
+      redValidTaps: redScaledTaps,
       totalValidTaps,
       dividerPosition,
       winner,
@@ -88,124 +98,74 @@ function App() {
     };
   }, [teamTapCounts, teamCounts, teamMembersCount]);
 
-  const fetchTeamMembers = useCallback(async () => {
+  const fetchTeamDetails = useCallback(async () => {
     try {
       const protocol = window.location.protocol;
-      const response = await fetch(
-        `${protocol}//${protocol === "https:" ? WS_URL : "localhost:8080"
-        }/api/admin/players`
-      );
-
-      if (!response.ok) {
-        console.error("Failed to fetch team members");
-        return;
-      }
-      
-      const data = await response.json();
-      
-      const blueMembers = Array(teamMembersCount).fill(null);
-      const redMembers = Array(teamMembersCount).fill(null);
-      
-      if (data["Team Blue"]) {
-        data["Team Blue"].forEach((member, index) => {
-          if (index < teamMembersCount && member) {
-            blueMembers[index] = member;
-          }
-        });
-      }
-      
-      if (data["Team Red"]) {
-        data["Team Red"].forEach((member, index) => {
-          if (index < teamMembersCount && member) {
-            redMembers[index] = member;
-          }
-        });
-      }
-      
-      setBlueTeamMembers(blueMembers);
-      setRedTeamMembers(redMembers);
-      
-      if (selectedTeam === "Team Blue") {
-        setTeamMembers(blueMembers);
-      } else if (selectedTeam === "Team Red") {
-        setTeamMembers(redMembers);
-      }
-      
-    } catch (error) {
-      console.error("Error fetching team members:", error);
-    }
-  }, [WS_URL, teamMembersCount, selectedTeam]);
-
-  const fetchTapCounts = useCallback(async () => {
-    try {
-      const protocol = window.location.protocol;
-      const response = await fetch(
+      // Fetch tap counts
+      const tapResponse = await fetch(
         `${protocol}//${protocol === "https:" ? WS_URL : "localhost:8080"
         }/api/teams/tap-counts`
       );
-
-      if (!response.ok) {
-        console.error("Failed to fetch tap counts");
-        return;
+      
+      if (tapResponse.ok) {
+        const tapData = await tapResponse.json();
+        setTeamTapCounts(tapData);
       }
-      const data = await response.json();
-      setTeamTapCounts(data);
-    } catch (error) {
-      console.error("Error fetching tap counts:", error);
-    }
-  }, [WS_URL]);
-
-  const fetchGameState = useCallback(async () => {
-    try {
-      const protocol = window.location.protocol;
-      const response = await fetch(
+      
+      // Fetch team members and counts
+      const membersResponse = await fetch(
         `${protocol}//${protocol === "https:" ? WS_URL : "localhost:8080"
-        }/api/admin/game-state`
+        }/api/teams/all-data`
       );
-
-      if (!response.ok) {
-        setIsGameCreated(false);
-        setTeamMembersCount(0);
-        return;
+      
+      if (membersResponse.ok) {
+        const data = await membersResponse.json();
+        
+        // Update team counts
+        if (data.memberCounts) {
+          setTeamCounts(data.memberCounts);
+        }
+        
+        // Update lock status
+        if (data.lockStatus) {
+          setLockStatus(data.lockStatus);
+        }
+        
+        // Update team members
+        if (data.teams) {
+          if (data.teams["Team Blue"] && data.teams["Team Blue"].members) {
+            const blueMembers = data.teams["Team Blue"].members.filter(member => member !== null);
+            setBlueTeamMembers(blueMembers);
+            if (selectedTeam === "Team Blue") {
+              setTeamMembers(blueMembers);
+            }
+          }
+          
+          if (data.teams["Team Red"] && data.teams["Team Red"].members) {
+            const redMembers = data.teams["Team Red"].members.filter(member => member !== null);
+            setRedTeamMembers(redMembers);
+            if (selectedTeam === "Team Red") {
+              setTeamMembers(redMembers);
+            }
+          }
+        }
       }
-      
-      const data = await response.json();
-      
-      if (data.maxTeamSize) {
-        setTeamMembersCount(data.maxTeamSize);
-      } else {
-        setTeamMembersCount(0);
-      }
-      
-      setIsGameCreated(data.isGameCreated || false);
-      
-      fetchTeamMembers();
-      
     } catch (error) {
-      console.error("Error fetching game state:", error);
-      setIsGameCreated(false);
-      setTeamMembersCount(0);
+      console.error("Error fetching team details:", error);
     }
-  }, [WS_URL, fetchTeamMembers]);
+  }, [WS_URL, selectedTeam]);
 
   useEffect(() => {
     const updatedDisabledButtons = {
       "Team Blue": 
-        !isGameCreated || 
         lockStatus["Team Blue"] || 
         (teamCounts["Team Blue"] || 0) >= teamMembersCount,
       "Team Red": 
-        !isGameCreated || 
         lockStatus["Team Red"] || 
         (teamCounts["Team Red"] || 0) >= teamMembersCount,
     };
     setDisabledButtons(updatedDisabledButtons);
-    
-    if (!isGameCreated && selectedTeam) {
-      setSelectedTeam(null);
-      alert("The game has been reset or is not available. Please wait for an admin to create a new game.");
-    }
-  }, [teamCounts, lockStatus, teamMembersCount, isGameCreated, selectedTeam]);
+  }, [teamCounts, lockStatus, teamMembersCount]);
 
   useEffect(() => {
     const protocol = window.location.protocol;
@@ -222,23 +182,18 @@ function App() {
             const teamUpdate = JSON.parse(message.body);
 
             if (teamUpdate.members) {
-              const fixedMembers = Array(teamMembersCount).fill(null);
-              
-              teamUpdate.members.forEach((member, index) => {
-                if (member !== null) {
-                  fixedMembers[index] = member;
-                }
-              });
+              // Update the team members list
+              const updatedMembers = teamUpdate.members.filter(member => member !== null);
               
               if (teamUpdate.teamName === "Team Blue") {
-                setBlueTeamMembers(fixedMembers);
+                setBlueTeamMembers(updatedMembers);
                 if (selectedTeam === "Team Blue") {
-                  setTeamMembers(fixedMembers);
+                  setTeamMembers(updatedMembers);
                 }
               } else if (teamUpdate.teamName === "Team Red") {
-                setRedTeamMembers(fixedMembers);
+                setRedTeamMembers(updatedMembers);
                 if (selectedTeam === "Team Red") {
-                  setTeamMembers(fixedMembers);
+                  setTeamMembers(updatedMembers);
                 }
               }
             }
@@ -268,40 +223,9 @@ function App() {
                 setSelectedTeam(null);
               }
               
-              if (teamUpdate.message.includes("Max team size updated to")) {
-                const newSize = parseInt(teamUpdate.message.split("to ")[1]);
-                if (!isNaN(newSize)) {
-                  setTeamMembersCount(newSize);
-                  setIsGameCreated(true);
-                  fetchTeamMembers();
-                  console.log(`Maximum team size updated to ${newSize}`);
-                }
-              }
-              
-              if (teamUpdate.message.includes("Game has been reset")) {
-                setIsGameCreated(false);
-                setBlueTeamMembers(Array(teamMembersCount).fill(null));
-                setRedTeamMembers(Array(teamMembersCount).fill(null));
-                if (selectedTeam) {
-                  setSelectedTeam(null);
-                  alert("The game has been reset by an admin. Please wait for a new game to be created.");
-                }
-              }
-              
-              if (teamUpdate.message.includes("Game created with team size")) {
-                const newSize = parseInt(teamUpdate.message.split("size ")[1]);
-                if (!isNaN(newSize)) {
-                  setTeamMembersCount(newSize);
-                  setIsGameCreated(true);
-                  setBlueTeamMembers(Array(newSize).fill(null));
-                  setRedTeamMembers(Array(newSize).fill(null));
-                  console.log(`Game created with team size ${newSize}`);
-                }
-              }
-              
               if (teamUpdate.message.includes("left the team") || 
                   teamUpdate.message.includes("joined")) {
-                fetchTeamMembers();
+                fetchTeamDetails();
               }
             }
           } catch (error) {
@@ -314,8 +238,7 @@ function App() {
           body: JSON.stringify({}),
         });
 
-        fetchTapCounts();
-        fetchGameState();
+        fetchTeamDetails();
       },
       onStompError: (frame) => {
         console.error("Broker reported error: " + frame.headers["message"]);
@@ -335,15 +258,10 @@ function App() {
         client.deactivate();
       }
     };
-  }, [username, fetchTapCounts, fetchGameState, teamMembersCount, fetchTeamMembers, selectedTeam]);
+  }, [username, fetchTeamDetails, teamMembersCount, selectedTeam]);
 
   const handleJoinTeam = useCallback(
     (teamName) => {
-      if (!isGameCreated) {
-        alert("No active game exists. Please wait for an admin to create a game.");
-        return;
-      }
-      
       if (stompClient && isConnected && username) {
         if (lockStatus[teamName]) {
           alert(
@@ -365,7 +283,7 @@ function App() {
         alert("WebSocket not connected. Please try again.");
       }
     },
-    [stompClient, isConnected, username, lockStatus, isGameCreated]
+    [stompClient, isConnected, username, lockStatus]
   );
   
   const handleLeaveTeam = useCallback(() => {
@@ -428,7 +346,7 @@ function App() {
     return (
       <div className="app-container">
         <div className="welcome-container">
-          <h1 className="app-title">Team Tapping Game</h1>
+          <h1 className="app-title">Online Tapping Game</h1>
           <form onSubmit={handleUsernameSubmit} className="username-form">
             <input
               type="text"
@@ -458,51 +376,38 @@ function App() {
         <div className="selection-card">
           <h1 className="welcome-heading">Welcome, {username}!</h1>
           
-          {!isGameCreated && (
-            <div className="waiting-for-game">
-              <h2 className="waiting-heading">Waiting for Game</h2>
-              <p className="waiting-message">
-                No active game exists. Please wait for an admin to create a game.
-              </p>
-            </div>
-          )}
-          
-          {isGameCreated && (
-            <>
-              <h2 className="choose-team-heading">Choose Your Team</h2>
+          <h2 className="choose-team-heading">Choose Your Team</h2>
 
-              <div className="team-buttons-container">
-                <button
-                  onClick={() => handleJoinTeam("Team Blue")}
-                  disabled={disabledButtons["Team Blue"]}
-                  className={`team-button blue-team ${disabledButtons["Team Blue"] ? "disabled" : ""
-                    }`}
-                >
-                  {disabledButtons["Team Blue"]
-                    ? `Team Blue Full (${teamMembersCount}/${teamMembersCount})`
-                    : `Join Team Blue (${blueCount}/${teamMembersCount})`}
-                </button>
+          <div className="team-buttons-container">
+            <button
+              onClick={() => handleJoinTeam("Team Blue")}
+              disabled={disabledButtons["Team Blue"]}
+              className={`team-button blue-team ${disabledButtons["Team Blue"] ? "disabled" : ""
+                }`}
+            >
+              {disabledButtons["Team Blue"]
+                ? `Team Blue Full (${teamMembersCount}/${teamMembersCount})`
+                : `Join Team Blue (${blueCount}/${teamMembersCount})`}
+            </button>
 
-                <button
-                  onClick={() => handleJoinTeam("Team Red")}
-                  disabled={disabledButtons["Team Red"]}
-                  className={`team-button red-team ${disabledButtons["Team Red"] ? "disabled" : ""
-                    }`}
-                >
-                  {disabledButtons["Team Red"]
-                    ? `Team Red Full (${teamMembersCount}/${teamMembersCount})`
-                    : `Join Team Red (${redCount}/${teamMembersCount})`}
-                </button>
-              </div>
+            <button
+              onClick={() => handleJoinTeam("Team Red")}
+              disabled={disabledButtons["Team Red"]}
+              className={`team-button red-team ${disabledButtons["Team Red"] ? "disabled" : ""
+                }`}
+            >
+              {disabledButtons["Team Red"]
+                ? `Team Red Full (${teamMembersCount}/${teamMembersCount})`
+                : `Join Team Red (${redCount}/${teamMembersCount})`}
+            </button>
+          </div>
 
-              <div className="team-selection-info">
-                <p>
-                  Join a team to start tapping! First team to reach 75% of total
-                  taps wins!
-                </p>
-              </div>
-            </>
-          )}
+          <div className="team-selection-info">
+            <p>
+              Join a team to start tapping! First team to reach 75% of total
+              taps wins!
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -519,13 +424,23 @@ function App() {
   const redTeamFull = teamCounts["Team Red"] >= teamMembersCount;
   const bothTeamsFullAndReady = blueTeamFull && redTeamFull;
 
+  // Create a fixed size array to display team members including empty slots
+  const teamMembersDisplay = Array(teamMembersCount).fill(null);
+  
+  // Fill in the array with actual team members
+  teamMembers.forEach((member, index) => {
+    if (index < teamMembersCount) {
+      teamMembersDisplay[index] = member;
+    }
+  });
+
   return (
     <div className="game-room-container">
       <div className="game-card">
         <div className="team-header" style={{ backgroundColor: teamColorMain }}>
           <h1 className="team-title">{selectedTeam} Game Room</h1>
           <span className="member-count">
-            {teamMembers.filter(Boolean).length}/{teamMembersCount} Players
+            {teamMembers.length}/{teamMembersCount} Players
           </span>
         </div>
 
@@ -534,12 +449,10 @@ function App() {
             Team Members
           </h2>
           <ul className="members-list">
-            {Array(teamMembersCount).fill().map((_, index) => {
-              const member = teamMembers[index] || null;
-              
+            {teamMembersDisplay.map((member, index) => {
               return member ? (
                 <li
-                  key={member.id}
+                  key={member.id || `member-${index}`}
                   className={`member-item ${member.username === username ? "current-user" : ""}`}
                   style={{
                     backgroundColor:

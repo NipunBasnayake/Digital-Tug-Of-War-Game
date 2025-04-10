@@ -1,20 +1,14 @@
 server:
   port: 8080
-
 spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/kamba_adima_db?createDatabaseIfNotExist=true
-    username: root
-    password: 1234
-
-  jpa:
-    hibernate:
-      ddl-auto: create
-
   output:
     ansi:
       enabled: always
-
   h2:
     console:
       enabled: true
+
+# Game Configuration
+game:
+  team:
+    maxSize: 2

@@ -1,5 +1,4 @@
 package edu.nipun.kambaadima.dto;
-
 import lombok.Getter;
 import lombok.Setter;
 import java.util.ArrayList;
@@ -7,7 +6,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
 @Getter
 @Setter
 public class TeamDTO {
@@ -28,7 +26,7 @@ public class TeamDTO {
         this.roomLocked = false;
         this.teamCounts = new HashMap<>();
         this.lockStatus = new HashMap<>();
-        this.maxMembers = 0;
+        this.maxMembers = 5; // Default to 5 members
     }
 
     public TeamDTO(String teamName, int maxMembers) {
@@ -53,16 +51,13 @@ public class TeamDTO {
         if (user == null) {
             return;
         }
-
         user.setId(UUID.randomUUID().toString());
-
         for (int i = 0; i < members.size(); i++) {
             if (members.get(i) == null) {
                 members.set(i, user);
                 return;
             }
         }
-
         if (members.size() < maxMembers) {
             members.add(user);
         }
@@ -72,7 +67,6 @@ public class TeamDTO {
         if (username == null || username.isEmpty()) {
             return;
         }
-
         for (int i = 0; i < members.size(); i++) {
             UserDTO member = members.get(i);
             if (member != null && member.getUsername().equals(username)) {

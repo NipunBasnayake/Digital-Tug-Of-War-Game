@@ -1,13 +1,11 @@
 package edu.nipun.kambaadima.service.impl;
-
 import edu.nipun.kambaadima.dto.TeamDTO;
 import edu.nipun.kambaadima.dto.UserDTO;
 import edu.nipun.kambaadima.service.TeamService;
 import lombok.Getter;
 import org.springframework.stereotype.Service;
-
-import java.util.HashMap;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -15,12 +13,11 @@ import java.util.stream.Collectors;
 public class TeamServiceImpl implements TeamService {
     @Getter
     private final Map<String, TeamDTO> teams = new ConcurrentHashMap<>();
-    private static int MAX_TEAM_SIZE = 0;
-    private boolean gameCreated = false;
+    private static final int MAX_TEAM_SIZE = 2; // Fixed team size
 
     public TeamServiceImpl() {
-        teams.put("Team Blue", new TeamDTO("Team Blue"));
-        teams.put("Team Red", new TeamDTO("Team Red"));
+        teams.put("Team Blue", new TeamDTO("Team Blue", MAX_TEAM_SIZE));
+        teams.put("Team Red", new TeamDTO("Team Red", MAX_TEAM_SIZE));
     }
 
     @Override
@@ -28,11 +25,6 @@ public class TeamServiceImpl implements TeamService {
         TeamDTO team = teams.get(teamName);
         if (team == null) {
             throw new IllegalArgumentException("Team not found: " + teamName);
-        }
-
-        if (!gameCreated || MAX_TEAM_SIZE == 0) {
-            team.setMessage("Game not created yet. Please wait for an admin to create a game.");
-            return team;
         }
 
         if (team.getActiveMembers() >= MAX_TEAM_SIZE) {
@@ -43,12 +35,10 @@ public class TeamServiceImpl implements TeamService {
 
         team.addMember(user);
         team.setMessage(user.getUsername() + " joined " + teamName);
-
         if (team.getActiveMembers() == MAX_TEAM_SIZE) {
             team.setRoomLocked(true);
             team.setMessage("Team " + teamName + " is now full and locked");
         }
-
         return team;
     }
 
@@ -58,14 +48,11 @@ public class TeamServiceImpl implements TeamService {
         if (team == null) {
             throw new IllegalArgumentException("Team not found: " + teamName);
         }
-
         team.removeMember(username);
         team.setMessage(username + " left the team " + teamName);
-
         if (team.isRoomLocked() && team.getActiveMembers() < MAX_TEAM_SIZE) {
             team.setRoomLocked(false);
         }
-
         return team;
     }
 
@@ -107,52 +94,18 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
-    public int setMaxTeamSize(int maxTeamSize) {
-        if (maxTeamSize < 1) {
-            throw new IllegalArgumentException("Max team size must be at least 1");
-        }
-
-        MAX_TEAM_SIZE = maxTeamSize;
-
-        teams.values().forEach(team -> {
-            team.setMaxMembers(maxTeamSize);
-
-            if (team.getActiveMembers() >= MAX_TEAM_SIZE) {
-                team.setRoomLocked(true);
-            } else if (team.isRoomLocked() && team.getActiveMembers() < MAX_TEAM_SIZE) {
-                team.setRoomLocked(false);
-            }
-        });
-
-        return MAX_TEAM_SIZE;
-    }
-
-    @Override
-    public Map<String, Object> resetGame() {
-        teams.clear();
-        teams.put("Team Blue", new TeamDTO("Team Blue", MAX_TEAM_SIZE));
-        teams.put("Team Red", new TeamDTO("Team Red", MAX_TEAM_SIZE));
-        gameCreated = false;
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("status", "Game reset successfully");
-        result.put("teams", teams.keySet());
-        return result;
-    }
-
-    @Override
     public int getMaxTeamSize() {
         return MAX_TEAM_SIZE;
     }
 
     @Override
-    public boolean isGameCreated() {
-        return gameCreated;
+    public Map<String, Object> getAllTeamData() {
+        Map<String, Object> result = new HashMap<>();
+        result.put("memberCounts", getTeamMemberCounts());
+        result.put("tapCounts", getTeamTapCounts());
+        result.put("lockStatus", getTeamLockStatus());
+        result.put("maxTeamSize", MAX_TEAM_SIZE);
+        result.put("teams", teams);
+        return result;
     }
-
-    @Override
-    public void setGameCreated(boolean isCreated) {
-        this.gameCreated = isCreated;
-    }
-
 }

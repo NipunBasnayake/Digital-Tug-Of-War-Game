@@ -7,6 +7,11 @@
     <link rel="stylesheet" href="styles.css"/>
   </head>
   <body>
+    <div class="game-area">
+      <img src="assets/players.png" id="teamsImage" class="teams-image">
+      <div class="rope"></div>
+    </div>
+    <img src="assets/sun.gif" alt="sun gif" class="sun-gif">
     <div class="progress-container">
       <div id="connectionStatus" class="connection-status">
         Connecting to WebSocket...
@@ -26,7 +31,7 @@
       <div id="gameStatus" class="game-status">Waiting for Game to Start</div>
       <div id="winnerBanner" class="winner-banner">Winner: Team</div>
     </div>
-
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <script src="app.js"></script>
   </body>

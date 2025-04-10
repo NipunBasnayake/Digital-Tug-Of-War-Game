@@ -4,7 +4,255 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Game Admin Panel</title>
-    <link rel="stylesheet" href="styles.css">
+    <style>
+        :root {
+            --blue: #044C91;
+            --red: #8D153A;
+            --dark-blue: #023871;
+            --dark-red: #701230;
+            --gold: #D9B310;
+            --light-gray: #f5f5f5;
+            --medium-gray: #e0e0e0;
+            --dark-gray: #333;
+            --success: #4CAF50;
+            --error: #F44336;
+            --warning: #FF9800;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--light-gray);
+            color: var(--dark-gray);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+        
+        .header h1 {
+            color: var(--dark-gray);
+            font-size: 2.5rem;
+        }
+        
+        .server-url {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .server-url label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        
+        .server-url input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--medium-gray);
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            display: none;
+        }
+        
+        .alert-success {
+            background-color: #dff0d8;
+            color: #3c763d;
+            border: 1px solid #d6e9c6;
+        }
+        
+        .alert-error {
+            background-color: #f2dede;
+            color: #a94442;
+            border: 1px solid #ebccd1;
+        }
+        
+        .game-status {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .status-title {
+            margin-bottom: 15px;
+            color: var(--dark-gray);
+            font-size: 1.5rem;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+        
+        .status-label {
+            font-weight: bold;
+        }
+        
+        .status-blue {
+            color: var(--blue);
+        }
+        
+        .status-red {
+            color: var(--red);
+        }
+        
+        .status-value {
+            font-family: monospace;
+        }
+        
+        .game-state {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .game-active {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        
+        .game-inactive {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+        
+        .card-title {
+            color: var(--dark-gray);
+            font-size: 1.3rem;
+            margin-bottom: 5px;
+        }
+        
+        .card-description {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .icon {
+            width: 24px;
+            height: 24px;
+        }
+        
+        .icon-green {
+            color: var(--success);
+        }
+        
+        .icon-red {
+            color: var(--error);
+        }
+        
+        .input-group {
+            padding: 0 20px 20px;
+        }
+        
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        
+        .input-number {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--medium-gray);
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .btn {
+            display: block;
+            width: calc(100% - 40px);
+            margin: 0 auto 20px;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-green {
+            background-color: var(--success);
+            color: white;
+        }
+        
+        .btn-green:hover {
+            background-color: #45a049;
+        }
+        
+        .btn-red {
+            background-color: var(--error);
+            color: white;
+        }
+        
+        .btn-red:hover {
+            background-color: #d32f2f;
+        }
+        
+        .btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        @media (min-width: 768px) {
+            .card-container {
+                display: flex;
+                gap: 20px;
+            }
+            
+            .card {
+                flex: 1;
+                margin-bottom: 0;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -14,8 +262,7 @@
         
         <div class="server-url">
             <label for="serverUrl">Server URL:</label>
-            <input 
-                id="serverUrl" 
+            <input id="serverUrl" 
                 type="text" 
                 value="http://localhost:8080" 
             />
@@ -43,48 +290,50 @@
             </div>
         </div>
         
-        <div class="card">
-            <div class="card-header">
-                <div>
-                    <h2 class="card-title">Create Game</h2>
-                    <p class="card-description">
-                        Set up a new game with your desired team size. This will reset any existing game.
-                    </p>
+        <div class="card-container">
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Create Game</h2>
+                        <p class="card-description">
+                            Set up a new game with your desired team size. This will reset any existing game.
+                        </p>
+                    </div>
+                    <svg class="icon icon-green" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="16"></line>
+                        <line x1="8" y1="12" x2="16" y2="12"></line>
+                    </svg>
                 </div>
-                <svg class="icon icon-green" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="8" x2="12" y2="16"></line>
-                    <line x1="8" y1="12" x2="16" y2="12"></line>
-                </svg>
-            </div>
-            <div class="input-group">
-                <label for="maxTeamSize" class="input-label">Team Size:</label>
-                <input 
-                    id="maxTeamSize" 
-                    type="number" 
-                    min="1" 
-                    max="20" 
-                    value="6" 
-                    class="input-number"
-                />
-            </div>
-            <button id="createGameBtn" class="btn btn-green">Create New Game</button>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">
-                <div>
-                    <h2 class="card-title">Reset Game</h2>
-                    <p class="card-description">
-                        This will clear all teams, remove all players, and reset all tap counts.
-                    </p>
+                <div class="input-group">
+                    <label for="maxTeamSize" class="input-label">Team Size:</label>
+                    <input 
+                        id="maxTeamSize" 
+                        type="number" 
+                        min="1" 
+                        max="20" 
+                        value="6" 
+                        class="input-number"
+                    />
                 </div>
-                <svg class="icon icon-red" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M23 4v6h-6"></path>
-                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                </svg>
+                <button id="createGameBtn" class="btn btn-green">Create New Game</button>
             </div>
-            <button id="resetGameBtn" class="btn btn-red">Reset Game</button>
+            
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Reset Game</h2>
+                        <p class="card-description">
+                            This will clear all teams, remove all players, and reset all tap counts.
+                        </p>
+                    </div>
+                    <svg class="icon icon-red" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 4v6h-6"></path>
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                    </svg>
+                </div>
+                <button id="resetGameBtn" class="btn btn-red">Reset Game</button>
+            </div>
         </div>
     </div>
     
