@@ -17,7 +17,7 @@ public class TeamDTO {
     private Map<String, Integer> teamCounts;
     private Map<String, Boolean> lockStatus;
     private int maxMembers;
-    
+
     public TeamDTO(String teamName) {
         this.teamName = teamName;
         this.members = new ArrayList<>();

@@ -4,23 +4,18 @@ import "./App.css";
 
 function App() {
   const WS_URL = "fly-allowing-oddly.ngrok-free.app";
-  const [teamMembersCount, setTeamMembersCount] = useState(1);
+  const [teamMembersCount, setTeamMembersCount] = useState(4);
 
-  // Set our timing variables with default values
-  const [buttonEnableTime, setButtonEnableTime] = useState(3000); // 3 seconds enabled
-  const [buttonDisableTime, setButtonDisableTime] = useState(5000); // 5 seconds disabled
+  const [buttonEnableTime, setButtonEnableTime] = useState(3000);
+  const [buttonDisableTime, setButtonDisableTime] = useState(5000);
 
   const buttonTimerRef = useRef(null);
-  const buttonIntervalRef = useRef(null);
-
-  // Countdown timer state
   const [showCountdown, setShowCountdown] = useState(false);
   const [countdownValue, setCountdownValue] = useState(10);
   const countdownTimerRef = useRef(null);
   const [gameStarted, setGameStarted] = useState(false);
 
-  // Game timer state (for ending the game)
-  const [gameTimeLeft, setGameTimeLeft] = useState(2 * 60); // game time
+  const [gameTimeLeft, setGameTimeLeft] = useState(3 * 60);
   const [gameTimerActive, setGameTimerActive] = useState(false);
   const gameTimerRef = useRef(null);
 
@@ -35,7 +30,6 @@ function App() {
 
   const [blueTeamMembers, setBlueTeamMembers] = useState([]);
   const [redTeamMembers, setRedTeamMembers] = useState([]);
-
   const [teamMembers, setTeamMembers] = useState([]);
 
   const [teamTapCounts, setTeamTapCounts] = useState({
@@ -60,83 +54,99 @@ function App() {
   const [isTapping, setIsTapping] = useState(false);
   const [isButtonEnabled, setIsButtonEnabled] = useState(true);
 
-  // Function to update button timing settings
-  const updateButtonTimings = (enableTimeMs, disableTimeMs) => {
-    // Clear existing timers
+  // Clear any active timers when component unmounts
+  useEffect(() => {
+    return () => {
+      if (buttonTimerRef.current) {
+        clearTimeout(buttonTimerRef.current);
+      }
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+      }
+      if (gameTimerRef.current) {
+        clearInterval(gameTimerRef.current);
+      }
+    };
+  }, []);
+
+  const updateButtonTimings = useCallback((enableTimeMs, disableTimeMs) => {
     if (buttonTimerRef.current) {
       clearTimeout(buttonTimerRef.current);
     }
-    if (buttonIntervalRef.current) {
-      clearInterval(buttonIntervalRef.current);
-    }
 
-    // Update the timing values
     setButtonEnableTime(enableTimeMs);
     setButtonDisableTime(disableTimeMs);
 
-    // Restart the button toggle loop with new timings
     startAsymmetricButtonLoop(enableTimeMs, disableTimeMs);
-  };
+  }, []);
 
-  // This is the key function that implements the asymmetric timing pattern
   const startAsymmetricButtonLoop = useCallback((enableTime, disableTime) => {
-    // Start with the button enabled
     setIsButtonEnabled(true);
 
-    // Define our toggle cycle
     const runToggleCycle = () => {
-      // After enableTime, disable the button
+      // Clear any existing timer
+      if (buttonTimerRef.current) {
+        clearTimeout(buttonTimerRef.current);
+      }
+
+      // Set button to be enabled for enableTime duration
       buttonTimerRef.current = setTimeout(() => {
         setIsButtonEnabled(false);
 
         // After disableTime, enable the button again and restart the cycle
         buttonTimerRef.current = setTimeout(() => {
           setIsButtonEnabled(true);
-          runToggleCycle(); // Restart the cycle
+          runToggleCycle();
         }, disableTime);
       }, enableTime);
     };
 
-    // Start the toggle cycle
     runToggleCycle();
-  }, []);
 
-  // Function to start the game timer (for ending the game)
-  const startGameTimer = useCallback(() => {
-    setGameTimeLeft(120); // Reset to 2 minutes
-    setGameTimerActive(true);
-
-    const timer = setInterval(() => {
-      setGameTimeLeft(prevTime => {
-        if (prevTime <= 1) {
-          clearInterval(timer);
-          setGameTimerActive(false);
-          setGameEnded(true);
-
-          // Clear other game timers when game ends
-          if (buttonTimerRef.current) {
-            clearTimeout(buttonTimerRef.current);
-          }
-          if (buttonIntervalRef.current) {
-            clearInterval(buttonIntervalRef.current);
-          }
-
-          return 0;
-        }
-        return prevTime - 1;
-      });
-    }, 1000);
-
-    gameTimerRef.current = timer;
-
+    // Return a cleanup function to clear the timer
     return () => {
-      clearInterval(timer);
+      if (buttonTimerRef.current) {
+        clearTimeout(buttonTimerRef.current);
+      }
     };
   }, []);
 
-  // Function to start the countdown timer
+  const startGameTimer = useCallback(() => {
+    // Clear any existing game timer
+    if (gameTimerRef.current) {
+      clearInterval(gameTimerRef.current);
+    }
+
+    setGameTimeLeft(3 * 60); // Reset to 3 minutes
+    setGameTimerActive(true);
+
+    gameTimerRef.current = setInterval(() => {
+      setGameTimeLeft(prevTime => {
+        if (prevTime <= 1) {
+          clearInterval(gameTimerRef.current);
+          setGameTimerActive(false);
+          setGameEnded(true);
+          return 0;
+        }
+        return prevTime - 1; // Decrease by 1 second each time
+      });
+    }, 1000);
+
+    // Return a cleanup function
+    return () => {
+      if (gameTimerRef.current) {
+        clearInterval(gameTimerRef.current);
+      }
+    };
+  }, []);
+
   const startCountdownTimer = useCallback(() => {
-    if (gameStarted) return; // Don't start countdown if game already started
+    if (gameStarted) return;
+
+    // Clear any existing countdown timer
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+    }
 
     setShowCountdown(true);
     setCountdownValue(10);
@@ -148,10 +158,8 @@ function App() {
           setShowCountdown(false);
           setGameStarted(true);
 
-          // Start the button timing loop after countdown ends
+          // Start the button toggle cycle and game timer after countdown
           startAsymmetricButtonLoop(buttonEnableTime, buttonDisableTime);
-
-          // Start the game timer
           startGameTimer();
 
           return 0;
@@ -167,7 +175,6 @@ function App() {
     };
   }, [buttonEnableTime, buttonDisableTime, gameStarted, startAsymmetricButtonLoop, startGameTimer]);
 
-  // Updated calculateGameState function to include timer-based winning
   const calculateGameState = useCallback(() => {
     const minimumRequiredTaps = 100;
     const initialTeamTaps = 0;
@@ -179,7 +186,6 @@ function App() {
     const bothTeamsFull =
       blueTeamCount >= teamMembersCount && redTeamCount >= teamMembersCount;
 
-    // Calculate valid taps considering initial taps and team fullness
     const blueValidTaps = bothTeamsFull
       ? Math.max(0, blueTaps - initialTeamTaps)
       : 0;
@@ -187,23 +193,19 @@ function App() {
       ? Math.max(0, redTaps - initialTeamTaps)
       : 0;
 
-    // Divide team taps by 5 when total reaches 100
     const blueScaledTaps = bothTeamsFull ? Math.floor(blueValidTaps / 5) : 0;
     const redScaledTaps = bothTeamsFull ? Math.floor(redValidTaps / 5) : 0;
 
     const totalValidTaps = blueScaledTaps + redScaledTaps;
 
-    // Calculate divider position with smooth movement
-    let dividerPosition = 50; // Default to 50-50 (tie position)
+    let dividerPosition = 50;
     if (totalValidTaps > 0) {
       dividerPosition = (blueScaledTaps / totalValidTaps) * 100;
     }
 
-    // Determine winner based on game conditions
     let winner = null;
     let winMessage = "";
 
-    // Check if the game has ended (timer reached zero)
     if (gameEnded) {
       if (dividerPosition > 50) {
         winner = "blue";
@@ -215,9 +217,7 @@ function App() {
         winner = "tie";
         winMessage = "It's a Tie!";
       }
-    }
-    // If game is still running, check for the 75% win condition
-    else if (totalValidTaps >= minimumRequiredTaps) {
+    } else if (totalValidTaps >= minimumRequiredTaps) {
       if (dividerPosition >= 75) {
         winner = "blue";
         winMessage = "Team Blue Wins!";
@@ -241,10 +241,10 @@ function App() {
   const fetchTeamDetails = useCallback(async () => {
     try {
       const protocol = window.location.protocol;
-      // Fetch tap counts
+      const baseUrl = `${protocol}//${protocol === "https:" ? WS_URL : "localhost:8080"}`;
+
       const tapResponse = await fetch(
-        `${protocol}//${protocol === "https:" ? WS_URL : "localhost:8080"
-        }/api/teams/tap-counts`
+        `${baseUrl}/api/teams/tap-counts`
       );
 
       if (tapResponse.ok) {
@@ -252,26 +252,21 @@ function App() {
         setTeamTapCounts(tapData);
       }
 
-      // Fetch team members and counts
       const membersResponse = await fetch(
-        `${protocol}//${protocol === "https:" ? WS_URL : "localhost:8080"
-        }/api/teams/all-data`
+        `${baseUrl}/api/teams/all-data`
       );
 
       if (membersResponse.ok) {
         const data = await membersResponse.json();
 
-        // Update team counts
         if (data.memberCounts) {
           setTeamCounts(data.memberCounts);
         }
 
-        // Update lock status
         if (data.lockStatus) {
           setLockStatus(data.lockStatus);
         }
 
-        // Update team members
         if (data.teams) {
           if (data.teams["Team Blue"] && data.teams["Team Blue"].members) {
             const blueMembers = data.teams["Team Blue"].members.filter(
@@ -299,6 +294,7 @@ function App() {
     }
   }, [WS_URL, selectedTeam]);
 
+  // Update disabled buttons when team counts or lock status changes
   useEffect(() => {
     const updatedDisabledButtons = {
       "Team Blue":
@@ -311,7 +307,7 @@ function App() {
     setDisabledButtons(updatedDisabledButtons);
   }, [teamCounts, lockStatus, teamMembersCount]);
 
-  // Watch for both teams being full and start countdown
+  // Start countdown when both teams are full
   useEffect(() => {
     const blueTeamFull = teamCounts["Team Blue"] >= teamMembersCount;
     const redTeamFull = teamCounts["Team Red"] >= teamMembersCount;
@@ -322,13 +318,19 @@ function App() {
     }
   }, [teamCounts, teamMembersCount, gameStarted, showCountdown, startCountdownTimer]);
 
+  // Setup WebSocket connection
   useEffect(() => {
     const protocol = window.location.protocol;
+    const wsProtocol = protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${wsProtocol}//${protocol === "https:" ? WS_URL : "localhost:8080"}/ws/websocket`;
+
+    // Clean up any existing client before creating a new one
+    if (stompClient) {
+      stompClient.deactivate();
+    }
 
     const client = new Client({
-      brokerURL: `${protocol === "https:" ? "wss:" : "ws:"}//${protocol === "https:" ? WS_URL : "localhost:8080"
-        }/ws/websocket`,
-
+      brokerURL: wsUrl,
       onConnect: () => {
         setIsConnected(true);
 
@@ -337,10 +339,12 @@ function App() {
             const teamUpdate = JSON.parse(message.body);
 
             if (teamUpdate.members) {
-              // Update the team members list
               const updatedMembers = teamUpdate.members.filter(
                 (member) => member !== null
-              );
+              ).map(member => ({
+                username: member.username,
+                id: member.id
+              }));
 
               if (teamUpdate.teamName === "Team Blue") {
                 setBlueTeamMembers(updatedMembers);
@@ -417,25 +421,7 @@ function App() {
         client.deactivate();
       }
     };
-  }, [username, fetchTeamDetails, teamMembersCount, selectedTeam]);
-
-  // Clean up timers on component unmount
-  useEffect(() => {
-    return () => {
-      if (buttonTimerRef.current) {
-        clearTimeout(buttonTimerRef.current);
-      }
-      if (buttonIntervalRef.current) {
-        clearInterval(buttonIntervalRef.current);
-      }
-      if (countdownTimerRef.current) {
-        clearInterval(countdownTimerRef.current);
-      }
-      if (gameTimerRef.current) {
-        clearInterval(gameTimerRef.current);
-      }
-    };
-  }, []);
+  }, [WS_URL, fetchTeamDetails, selectedTeam]);
 
   const handleJoinTeam = useCallback(
     (teamName) => {
@@ -479,10 +465,12 @@ function App() {
   }, [stompClient, isConnected, selectedTeam, username]);
 
   const handleTap = useCallback(() => {
-    const currentTime = Date.now();
-
+    // Avoid tapping if button is disabled or game isn't active
     if (isTapping || !isButtonEnabled || !gameStarted || gameEnded) return;
 
+    const currentTime = Date.now();
+
+    // Rate limiting to prevent spam
     if (currentTime - lastTapTime < 10) {
       return;
     }
@@ -519,18 +507,17 @@ function App() {
     setUsernameInput(e.target.value);
   };
 
-  // Function to change timing settings
   const changeButtonTiming = (newEnableTimeMs, newDisableTimeMs) => {
     updateButtonTimings(newEnableTimeMs, newDisableTimeMs);
   };
 
-  // Format time for display (MM:SS)
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Username entry screen
   if (!username) {
     return (
       <div className="app-container">
@@ -556,6 +543,7 @@ function App() {
     );
   }
 
+  // Team selection screen
   if (!selectedTeam) {
     const blueCount = teamCounts["Team Blue"] || 0;
     const redCount = teamCounts["Team Red"] || 0;
@@ -571,8 +559,7 @@ function App() {
             <button
               onClick={() => handleJoinTeam("Team Blue")}
               disabled={disabledButtons["Team Blue"]}
-              className={`team-button blue-team ${disabledButtons["Team Blue"] ? "disabled" : ""
-                }`}
+              className={`team-button blue-team ${disabledButtons["Team Blue"] ? "disabled" : ""}`}
             >
               {disabledButtons["Team Blue"]
                 ? `Team Blue Full (${teamMembersCount}/${teamMembersCount})`
@@ -582,8 +569,7 @@ function App() {
             <button
               onClick={() => handleJoinTeam("Team Red")}
               disabled={disabledButtons["Team Red"]}
-              className={`team-button red-team ${disabledButtons["Team Red"] ? "disabled" : ""
-                }`}
+              className={`team-button red-team ${disabledButtons["Team Red"] ? "disabled" : ""}`}
             >
               {disabledButtons["Team Red"]
                 ? `Team Red Full (${teamMembersCount}/${teamMembersCount})`
@@ -593,7 +579,7 @@ function App() {
 
           <div className="team-selection-info">
             <p>
-            Join a team to play the game! Each team has 4 members and 10 minutes to play. When time runs out, the team that reaches more than 50% progress wins!
+              Join a team to play the game! Each team has 4 members and 10 minutes to play. When time runs out, the team that reaches more than 50% progress wins!
             </p>
           </div>
         </div>
@@ -601,6 +587,7 @@ function App() {
     );
   }
 
+  // Game screen
   const teamColorMain = selectedTeam === "Team Blue" ? "#044C91" : "#8D153A";
   const teamColorDark = selectedTeam === "Team Blue" ? "#023871" : "#701230";
 
@@ -677,7 +664,6 @@ function App() {
                     if (gameState.totalValidTaps === 0) return "50%";
                     return `${Math.round(
                       (gameState.blueValidTaps ** 1.2) * 100 / ((gameState.blueValidTaps ** 1.2) + (gameState.redValidTaps ** 1.2))
-                      // (gameState.blueValidTaps / gameState.totalValidTaps) * 100
                     )}%`;
                   })()}
                 </span>
@@ -686,7 +672,6 @@ function App() {
                     if (gameState.totalValidTaps === 0) return "50%";
                     return `${Math.round(
                       (gameState.redValidTaps ** 1.2) * 100 / ((gameState.blueValidTaps ** 1.2) + (gameState.redValidTaps ** 1.2))
-                      // (gameState.redValidTaps / gameState.totalValidTaps) * 100
                     )}%`;
                   })()}
                 </span>
@@ -698,7 +683,7 @@ function App() {
                 style={{
                   backgroundColor:
                     gameState.winner === "blue" ? "#044C91" :
-                      gameState.winner === "red" ? "#8D153A" : "#555", // Gray for tie
+                      gameState.winner === "red" ? "#8D153A" : "#555",
                   animation: "pulse-background 1.5s infinite",
                 }}
               >
@@ -735,6 +720,51 @@ function App() {
                     : "TAP NOW!"}
           </button>
         </div>
+
+        {/* <div className="team-members-section">
+          <h3>Team Members</h3>
+          <div className="team-members-grid">
+            {teamMembersDisplay.map((member, index) => (
+              <div
+                key={index}
+                className={`team-member-slot ${member ? 'filled' : 'empty'}`}
+              >
+                {member ? member.username : `Slot ${index + 1}`}
+              </div>
+            ))}
+          </div>
+        </div> */}
+
+        <div className="members-section">
+          <h2 className="section-title" style={{ color: teamColorMain }}>
+            Team Members
+          </h2>
+          <ul className="members-list">
+            {teamMembersDisplay.map((member, index) => {
+              return member ? (
+                <li
+                  key={member.id || `member-${index}`}
+                  className={`member-item ${member.username === username ? "current-user" : ""}`}
+                  style={{
+                    backgroundColor:
+                      member.username === username
+                        ? teamColorMain
+                        : `${teamColorMain}30`,
+                    color: member.username === username ? "white" : teamColorDark,
+                  }}
+                >
+                  {member.username}
+                  {member.username === username ? " (You)" : ""}
+                </li>
+              ) : (
+                <li key={`empty-${index}`} className="member-item empty-slot">
+                  Empty Slot
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
 
         <div
           className="leave-section"
