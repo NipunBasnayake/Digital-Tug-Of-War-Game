@@ -3,11 +3,11 @@ import { Client } from "@stomp/stompjs";
 import "./App.css";
 
 function App() {
-  const WS_URL = "fly-allowing-oddly.ngrok-free.app";
-  const [teamMembersCount, setTeamMembersCount] = useState(1);
+  const WS_URL = "604b-175-157-112-197.ngrok-free.app";
+  const [teamMembersCount, setTeamMembersCount] = useState(1);        // Number of Team Members
 
-  const [buttonEnableTime, setButtonEnableTime] = useState(3000);
-  const [buttonDisableTime, setButtonDisableTime] = useState(5000);
+  const [buttonEnableTime, setButtonEnableTime] = useState(3000);     // Button Enabled Time Duration
+  const [buttonDisableTime, setButtonDisableTime] = useState(5000);   // Button Dissabled Time Duration
 
   const buttonTimerRef = useRef(null);
   const [showCountdown, setShowCountdown] = useState(false);
@@ -15,7 +15,7 @@ function App() {
   const countdownTimerRef = useRef(null);
   const [gameStarted, setGameStarted] = useState(false);
 
-  const [gameTimeLeft, setGameTimeLeft] = useState(2 * 60);
+  const [gameTimeLeft, setGameTimeLeft] = useState(2 * 60);           // Game Time Duration
   const [gameTimerActive, setGameTimerActive] = useState(false);
   const gameTimerRef = useRef(null);
 
@@ -658,23 +658,7 @@ function App() {
                   })()}
                 </span>
               </div>
-            </div>
-
-
-            {/* {gameOver && (
-              <div
-                className="winner-announcement"
-                style={{
-                  backgroundColor:
-                    gameState.winner === "blue" ? "#044C91" :
-                      gameState.winner === "red" ? "#8D153A" : "#555",
-                  animation: "pulse-background 1.5s infinite",
-                }}
-              >
-                <h3>{winnerMessage}</h3>
-              </div>
-            )} */}
-            
+            </div>            
 
             {gameOver && (
               <div className="winner-popup-overlay">
