@@ -4,7 +4,7 @@ import "./App.css";
 
 function App() {
   const WS_URL = "fly-allowing-oddly.ngrok-free.app";
-  const [teamMembersCount, setTeamMembersCount] = useState(4);
+  const [teamMembersCount, setTeamMembersCount] = useState(1);
 
   const [buttonEnableTime, setButtonEnableTime] = useState(3000);
   const [buttonDisableTime, setButtonDisableTime] = useState(5000);
@@ -15,7 +15,7 @@ function App() {
   const countdownTimerRef = useRef(null);
   const [gameStarted, setGameStarted] = useState(false);
 
-  const [gameTimeLeft, setGameTimeLeft] = useState(3 * 60);
+  const [gameTimeLeft, setGameTimeLeft] = useState(2 * 60);
   const [gameTimerActive, setGameTimerActive] = useState(false);
   const gameTimerRef = useRef(null);
 
@@ -54,7 +54,6 @@ function App() {
   const [isTapping, setIsTapping] = useState(false);
   const [isButtonEnabled, setIsButtonEnabled] = useState(true);
 
-  // Clear any active timers when component unmounts
   useEffect(() => {
     return () => {
       if (buttonTimerRef.current) {
@@ -84,16 +83,13 @@ function App() {
     setIsButtonEnabled(true);
 
     const runToggleCycle = () => {
-      // Clear any existing timer
       if (buttonTimerRef.current) {
         clearTimeout(buttonTimerRef.current);
       }
 
-      // Set button to be enabled for enableTime duration
       buttonTimerRef.current = setTimeout(() => {
         setIsButtonEnabled(false);
 
-        // After disableTime, enable the button again and restart the cycle
         buttonTimerRef.current = setTimeout(() => {
           setIsButtonEnabled(true);
           runToggleCycle();
@@ -103,7 +99,6 @@ function App() {
 
     runToggleCycle();
 
-    // Return a cleanup function to clear the timer
     return () => {
       if (buttonTimerRef.current) {
         clearTimeout(buttonTimerRef.current);
@@ -112,12 +107,11 @@ function App() {
   }, []);
 
   const startGameTimer = useCallback(() => {
-    // Clear any existing game timer
     if (gameTimerRef.current) {
       clearInterval(gameTimerRef.current);
     }
 
-    setGameTimeLeft(3 * 60); // Reset to 3 minutes
+    setGameTimeLeft(gameTimeLeft);
     setGameTimerActive(true);
 
     gameTimerRef.current = setInterval(() => {
@@ -128,11 +122,10 @@ function App() {
           setGameEnded(true);
           return 0;
         }
-        return prevTime - 1; // Decrease by 1 second each time
+        return prevTime - 1;
       });
     }, 1000);
 
-    // Return a cleanup function
     return () => {
       if (gameTimerRef.current) {
         clearInterval(gameTimerRef.current);
@@ -143,7 +136,6 @@ function App() {
   const startCountdownTimer = useCallback(() => {
     if (gameStarted) return;
 
-    // Clear any existing countdown timer
     if (countdownTimerRef.current) {
       clearInterval(countdownTimerRef.current);
     }
@@ -158,7 +150,6 @@ function App() {
           setShowCountdown(false);
           setGameStarted(true);
 
-          // Start the button toggle cycle and game timer after countdown
           startAsymmetricButtonLoop(buttonEnableTime, buttonDisableTime);
           startGameTimer();
 
@@ -294,7 +285,6 @@ function App() {
     }
   }, [WS_URL, selectedTeam]);
 
-  // Update disabled buttons when team counts or lock status changes
   useEffect(() => {
     const updatedDisabledButtons = {
       "Team Blue":
@@ -307,7 +297,6 @@ function App() {
     setDisabledButtons(updatedDisabledButtons);
   }, [teamCounts, lockStatus, teamMembersCount]);
 
-  // Start countdown when both teams are full
   useEffect(() => {
     const blueTeamFull = teamCounts["Team Blue"] >= teamMembersCount;
     const redTeamFull = teamCounts["Team Red"] >= teamMembersCount;
@@ -318,13 +307,11 @@ function App() {
     }
   }, [teamCounts, teamMembersCount, gameStarted, showCountdown, startCountdownTimer]);
 
-  // Setup WebSocket connection
   useEffect(() => {
     const protocol = window.location.protocol;
     const wsProtocol = protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${wsProtocol}//${protocol === "https:" ? WS_URL : "localhost:8080"}/ws/websocket`;
 
-    // Clean up any existing client before creating a new one
     if (stompClient) {
       stompClient.deactivate();
     }
@@ -465,12 +452,10 @@ function App() {
   }, [stompClient, isConnected, selectedTeam, username]);
 
   const handleTap = useCallback(() => {
-    // Avoid tapping if button is disabled or game isn't active
     if (isTapping || !isButtonEnabled || !gameStarted || gameEnded) return;
 
     const currentTime = Date.now();
 
-    // Rate limiting to prevent spam
     if (currentTime - lastTapTime < 10) {
       return;
     }
@@ -517,12 +502,11 @@ function App() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Username entry screen
   if (!username) {
     return (
       <div className="app-container">
         <div className="welcome-container">
-          <h1 className="app-title">Online Tapping Game</h1>
+          <h1 className="app-title">Digital Tug of War Game</h1>
           <form onSubmit={handleUsernameSubmit} className="username-form">
             <input
               type="text"
@@ -543,7 +527,6 @@ function App() {
     );
   }
 
-  // Team selection screen
   if (!selectedTeam) {
     const blueCount = teamCounts["Team Blue"] || 0;
     const redCount = teamCounts["Team Red"] || 0;
@@ -587,7 +570,6 @@ function App() {
     );
   }
 
-  // Game screen
   const teamColorMain = selectedTeam === "Team Blue" ? "#044C91" : "#8D153A";
   const teamColorDark = selectedTeam === "Team Blue" ? "#023871" : "#701230";
 
@@ -621,7 +603,7 @@ function App() {
 
       <div className="game-card">
         <div className="team-header" style={{ backgroundColor: teamColorMain }}>
-          <h1 className="team-title">{selectedTeam} Game Room</h1>
+          <h1 className="team-title">{selectedTeam}</h1>
           <span className="member-count">
             {teamMembers.length}/{teamMembersCount} Players
           </span>
@@ -629,7 +611,7 @@ function App() {
 
         {gameStarted && !gameOver && (
           <div className="timer-section">
-            <h3 className="timer-label">Time Remaining:</h3>
+            <h3 className="timer-label">Time Remaining: </h3>
             <div className="timer-display">{formatTime(gameTimeLeft)}</div>
           </div>
         )}
@@ -677,7 +659,9 @@ function App() {
                 </span>
               </div>
             </div>
-            {gameOver && (
+
+
+            {/* {gameOver && (
               <div
                 className="winner-announcement"
                 style={{
@@ -688,6 +672,36 @@ function App() {
                 }}
               >
                 <h3>{winnerMessage}</h3>
+              </div>
+            )} */}
+            
+
+            {gameOver && (
+              <div className="winner-popup-overlay">
+                <div className="winner-popup">
+                  <div
+                    className="winner-popup-header"
+                    style={{
+                      backgroundColor:
+                        gameState.winner === "blue" ? "#044C91" :
+                          gameState.winner === "red" ? "#8D153A" : "#555"
+                    }}
+                  >
+                    <h3 className="winner-message">{winnerMessage}</h3>
+                  </div>
+
+                  <div className="winner-popup-content">
+                    <div className="trophy-icon">🏆</div>
+                    <p>Congratulations to {gameState.winner === "blue" ? "Team Blue" : gameState.winner === "red" ? "Team Red" : "both teams"}!</p>
+
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="refresh-button"
+                    >
+                      Play Again
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -721,20 +735,6 @@ function App() {
           </button>
         </div>
 
-        {/* <div className="team-members-section">
-          <h3>Team Members</h3>
-          <div className="team-members-grid">
-            {teamMembersDisplay.map((member, index) => (
-              <div
-                key={index}
-                className={`team-member-slot ${member ? 'filled' : 'empty'}`}
-              >
-                {member ? member.username : `Slot ${index + 1}`}
-              </div>
-            ))}
-          </div>
-        </div> */}
-
         <div className="members-section">
           <h2 className="section-title" style={{ color: teamColorMain }}>
             Team Members
@@ -764,7 +764,6 @@ function App() {
             })}
           </ul>
         </div>
-
 
         <div
           className="leave-section"
