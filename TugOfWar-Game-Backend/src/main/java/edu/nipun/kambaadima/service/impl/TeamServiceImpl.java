@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 public class TeamServiceImpl implements TeamService {
     @Getter
     private final Map<String, TeamDTO> teams = new ConcurrentHashMap<>();
-    private static final int MAX_TEAM_SIZE = 2; // Fixed team size
+    private static final int MAX_TEAM_SIZE = 1; // Fixed team size
 
     public TeamServiceImpl() {
         teams.put("Team Blue", new TeamDTO("Team Blue", MAX_TEAM_SIZE));

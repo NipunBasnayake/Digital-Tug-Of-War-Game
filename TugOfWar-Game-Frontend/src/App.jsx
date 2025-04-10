@@ -1,13 +1,31 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Client } from "@stomp/stompjs";
 import "./App.css";
 
 function App() {
-  
   const WS_URL = "fly-allowing-oddly.ngrok-free.app";
+  const [teamMembersCount, setTeamMembersCount] = useState(1);
+
+  // Set our timing variables with default values
+  const [buttonEnableTime, setButtonEnableTime] = useState(3000); // 3 seconds enabled
+  const [buttonDisableTime, setButtonDisableTime] = useState(5000); // 5 seconds disabled
   
-  const [teamMembersCount, setTeamMembersCount] = useState(2);
+  const buttonTimerRef = useRef(null);
+  const buttonIntervalRef = useRef(null);
+
+  // Countdown timer state
+  const [showCountdown, setShowCountdown] = useState(false);
+  const [countdownValue, setCountdownValue] = useState(10);
+  const countdownTimerRef = useRef(null);
+  const [gameStarted, setGameStarted] = useState(false);
+
+  // Game timer state (for ending the game)
+  const [gameTimeLeft, setGameTimeLeft] = useState(2*60); // game time
+  const [gameTimerActive, setGameTimerActive] = useState(false);
+  const gameTimerRef = useRef(null);
+
   const [isGameCreated, setIsGameCreated] = useState(true);
+  const [gameEnded, setGameEnded] = useState(false);
 
   const [usernameInput, setUsernameInput] = useState("");
   const [username, setUsername] = useState("");
@@ -17,9 +35,9 @@ function App() {
 
   const [blueTeamMembers, setBlueTeamMembers] = useState([]);
   const [redTeamMembers, setRedTeamMembers] = useState([]);
-  
+
   const [teamMembers, setTeamMembers] = useState([]);
-  
+
   const [teamTapCounts, setTeamTapCounts] = useState({
     "Team Blue": 0,
     "Team Red": 0,
@@ -40,8 +58,116 @@ function App() {
   const [lastTapTime, setLastTapTime] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [isTapping, setIsTapping] = useState(false);
+  const [isButtonEnabled, setIsButtonEnabled] = useState(true);
 
-  // Updated calculateGameState function
+  // Function to update button timing settings
+  const updateButtonTimings = (enableTimeMs, disableTimeMs) => {
+    // Clear existing timers
+    if (buttonTimerRef.current) {
+      clearTimeout(buttonTimerRef.current);
+    }
+    if (buttonIntervalRef.current) {
+      clearInterval(buttonIntervalRef.current);
+    }
+    
+    // Update the timing values
+    setButtonEnableTime(enableTimeMs);
+    setButtonDisableTime(disableTimeMs);
+    
+    // Restart the button toggle loop with new timings
+    startAsymmetricButtonLoop(enableTimeMs, disableTimeMs);
+  };
+
+  // This is the key function that implements the asymmetric timing pattern
+  const startAsymmetricButtonLoop = useCallback((enableTime, disableTime) => {
+    // Start with the button enabled
+    setIsButtonEnabled(true);
+    
+    // Define our toggle cycle
+    const runToggleCycle = () => {
+      // After enableTime, disable the button
+      buttonTimerRef.current = setTimeout(() => {
+        setIsButtonEnabled(false);
+        
+        // After disableTime, enable the button again and restart the cycle
+        buttonTimerRef.current = setTimeout(() => {
+          setIsButtonEnabled(true);
+          runToggleCycle(); // Restart the cycle
+        }, disableTime);
+      }, enableTime);
+    };
+    
+    // Start the toggle cycle
+    runToggleCycle();
+  }, []);
+
+  // Function to start the game timer (for ending the game)
+  const startGameTimer = useCallback(() => {
+    setGameTimeLeft(120); // Reset to 2 minutes
+    setGameTimerActive(true);
+    
+    const timer = setInterval(() => {
+      setGameTimeLeft(prevTime => {
+        if (prevTime <= 1) {
+          clearInterval(timer);
+          setGameTimerActive(false);
+          setGameEnded(true);
+          
+          // Clear other game timers when game ends
+          if (buttonTimerRef.current) {
+            clearTimeout(buttonTimerRef.current);
+          }
+          if (buttonIntervalRef.current) {
+            clearInterval(buttonIntervalRef.current);
+          }
+          
+          return 0;
+        }
+        return prevTime - 1;
+      });
+    }, 1000);
+    
+    gameTimerRef.current = timer;
+    
+    return () => {
+      clearInterval(timer);
+    };
+  }, []);
+
+  // Function to start the countdown timer
+  const startCountdownTimer = useCallback(() => {
+    if (gameStarted) return; // Don't start countdown if game already started
+    
+    setShowCountdown(true);
+    setCountdownValue(10);
+    
+    const timer = setInterval(() => {
+      setCountdownValue(prevCount => {
+        if (prevCount <= 1) {
+          clearInterval(timer);
+          setShowCountdown(false);
+          setGameStarted(true);
+          
+          // Start the button timing loop after countdown ends
+          startAsymmetricButtonLoop(buttonEnableTime, buttonDisableTime);
+          
+          // Start the game timer
+          startGameTimer();
+          
+          return 0;
+        }
+        return prevCount - 1;
+      });
+    }, 1000);
+    
+    countdownTimerRef.current = timer;
+    
+    return () => {
+      clearInterval(timer);
+    };
+  }, [buttonEnableTime, buttonDisableTime, gameStarted, startAsymmetricButtonLoop, startGameTimer]);
+
+  // Updated calculateGameState function to include timer-based winning
   const calculateGameState = useCallback(() => {
     const minimumRequiredTaps = 100;
     const initialTeamTaps = 0;
@@ -54,37 +180,50 @@ function App() {
       blueTeamCount >= teamMembersCount && redTeamCount >= teamMembersCount;
 
     // Calculate valid taps considering initial taps and team fullness
-    const blueValidTaps = bothTeamsFull 
-      ? Math.max(0, blueTaps - initialTeamTaps) 
+    const blueValidTaps = bothTeamsFull
+      ? Math.max(0, blueTaps - initialTeamTaps)
       : 0;
-    const redValidTaps = bothTeamsFull 
-      ? Math.max(0, redTaps - initialTeamTaps) 
+    const redValidTaps = bothTeamsFull
+      ? Math.max(0, redTaps - initialTeamTaps)
       : 0;
 
     // Divide team taps by 5 when total reaches 100
-    const blueScaledTaps = bothTeamsFull 
-      ? Math.floor(blueValidTaps / 5) 
-      : 0;
-    const redScaledTaps = bothTeamsFull 
-      ? Math.floor(redValidTaps / 5) 
-      : 0;
+    const blueScaledTaps = bothTeamsFull ? Math.floor(blueValidTaps / 5) : 0;
+    const redScaledTaps = bothTeamsFull ? Math.floor(redValidTaps / 5) : 0;
 
     const totalValidTaps = blueScaledTaps + redScaledTaps;
 
     // Calculate divider position with smooth movement
-    let dividerPosition = 50;
+    let dividerPosition = 50; // Default to 50-50 (tie position)
     if (totalValidTaps > 0) {
       dividerPosition = (blueScaledTaps / totalValidTaps) * 100;
     }
 
-    const canWin = totalValidTaps >= minimumRequiredTaps;
+    // Determine winner based on game conditions
     let winner = null;
+    let winMessage = "";
 
-    if (canWin) {
+    // Check if the game has ended (timer reached zero)
+    if (gameEnded) {
+      if (dividerPosition > 50) {
+        winner = "blue";
+        winMessage = "Team Blue Wins!";
+      } else if (dividerPosition < 50) {
+        winner = "red";
+        winMessage = "Team Red Wins!";
+      } else {
+        winner = "tie";
+        winMessage = "It's a Tie!";
+      }
+    } 
+    // If game is still running, check for the 75% win condition
+    else if (totalValidTaps >= minimumRequiredTaps) {
       if (dividerPosition >= 75) {
         winner = "blue";
+        winMessage = "Team Blue Wins!";
       } else if (dividerPosition <= 25) {
         winner = "red";
+        winMessage = "Team Red Wins!";
       }
     }
 
@@ -94,55 +233,62 @@ function App() {
       totalValidTaps,
       dividerPosition,
       winner,
-      canWin,
+      canWin: totalValidTaps >= minimumRequiredTaps,
+      winMessage
     };
-  }, [teamTapCounts, teamCounts, teamMembersCount]);
+  }, [teamTapCounts, teamCounts, teamMembersCount, gameEnded]);
 
   const fetchTeamDetails = useCallback(async () => {
     try {
       const protocol = window.location.protocol;
       // Fetch tap counts
       const tapResponse = await fetch(
-        `${protocol}//${protocol === "https:" ? WS_URL : "localhost:8080"
+        `${protocol}//${
+          protocol === "https:" ? WS_URL : "localhost:8080"
         }/api/teams/tap-counts`
       );
-      
+
       if (tapResponse.ok) {
         const tapData = await tapResponse.json();
         setTeamTapCounts(tapData);
       }
-      
+
       // Fetch team members and counts
       const membersResponse = await fetch(
-        `${protocol}//${protocol === "https:" ? WS_URL : "localhost:8080"
+        `${protocol}//${
+          protocol === "https:" ? WS_URL : "localhost:8080"
         }/api/teams/all-data`
       );
-      
+
       if (membersResponse.ok) {
         const data = await membersResponse.json();
-        
+
         // Update team counts
         if (data.memberCounts) {
           setTeamCounts(data.memberCounts);
         }
-        
+
         // Update lock status
         if (data.lockStatus) {
           setLockStatus(data.lockStatus);
         }
-        
+
         // Update team members
         if (data.teams) {
           if (data.teams["Team Blue"] && data.teams["Team Blue"].members) {
-            const blueMembers = data.teams["Team Blue"].members.filter(member => member !== null);
+            const blueMembers = data.teams["Team Blue"].members.filter(
+              (member) => member !== null
+            );
             setBlueTeamMembers(blueMembers);
             if (selectedTeam === "Team Blue") {
               setTeamMembers(blueMembers);
             }
           }
-          
+
           if (data.teams["Team Red"] && data.teams["Team Red"].members) {
-            const redMembers = data.teams["Team Red"].members.filter(member => member !== null);
+            const redMembers = data.teams["Team Red"].members.filter(
+              (member) => member !== null
+            );
             setRedTeamMembers(redMembers);
             if (selectedTeam === "Team Red") {
               setTeamMembers(redMembers);
@@ -157,22 +303,34 @@ function App() {
 
   useEffect(() => {
     const updatedDisabledButtons = {
-      "Team Blue": 
-        lockStatus["Team Blue"] || 
+      "Team Blue":
+        lockStatus["Team Blue"] ||
         (teamCounts["Team Blue"] || 0) >= teamMembersCount,
-      "Team Red": 
-        lockStatus["Team Red"] || 
+      "Team Red":
+        lockStatus["Team Red"] ||
         (teamCounts["Team Red"] || 0) >= teamMembersCount,
     };
     setDisabledButtons(updatedDisabledButtons);
   }, [teamCounts, lockStatus, teamMembersCount]);
 
+  // Watch for both teams being full and start countdown
+  useEffect(() => {
+    const blueTeamFull = teamCounts["Team Blue"] >= teamMembersCount;
+    const redTeamFull = teamCounts["Team Red"] >= teamMembersCount;
+    const bothTeamsFullAndReady = blueTeamFull && redTeamFull;
+    
+    if (bothTeamsFullAndReady && !gameStarted && !showCountdown) {
+      startCountdownTimer();
+    }
+  }, [teamCounts, teamMembersCount, gameStarted, showCountdown, startCountdownTimer]);
+
   useEffect(() => {
     const protocol = window.location.protocol;
 
     const client = new Client({
-      brokerURL: `${protocol === "https:" ? "wss:" : "ws:"}//${protocol === "https:" ? WS_URL : "localhost:8080"
-        }/ws/websocket`,
+      brokerURL: `${protocol === "https:" ? "wss:" : "ws:"}//${
+        protocol === "https:" ? WS_URL : "localhost:8080"
+      }/ws/websocket`,
 
       onConnect: () => {
         setIsConnected(true);
@@ -183,8 +341,10 @@ function App() {
 
             if (teamUpdate.members) {
               // Update the team members list
-              const updatedMembers = teamUpdate.members.filter(member => member !== null);
-              
+              const updatedMembers = teamUpdate.members.filter(
+                (member) => member !== null
+              );
+
               if (teamUpdate.teamName === "Team Blue") {
                 setBlueTeamMembers(updatedMembers);
                 if (selectedTeam === "Team Blue") {
@@ -222,9 +382,11 @@ function App() {
                 );
                 setSelectedTeam(null);
               }
-              
-              if (teamUpdate.message.includes("left the team") || 
-                  teamUpdate.message.includes("joined")) {
+
+              if (
+                teamUpdate.message.includes("left the team") ||
+                teamUpdate.message.includes("joined")
+              ) {
                 fetchTeamDetails();
               }
             }
@@ -260,6 +422,24 @@ function App() {
     };
   }, [username, fetchTeamDetails, teamMembersCount, selectedTeam]);
 
+  // Clean up timers on component unmount
+  useEffect(() => {
+    return () => {
+      if (buttonTimerRef.current) {
+        clearTimeout(buttonTimerRef.current);
+      }
+      if (buttonIntervalRef.current) {
+        clearInterval(buttonIntervalRef.current);
+      }
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+      }
+      if (gameTimerRef.current) {
+        clearInterval(gameTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleJoinTeam = useCallback(
     (teamName) => {
       if (stompClient && isConnected && username) {
@@ -285,7 +465,7 @@ function App() {
     },
     [stompClient, isConnected, username, lockStatus]
   );
-  
+
   const handleLeaveTeam = useCallback(() => {
     if (stompClient && isConnected && selectedTeam) {
       stompClient.publish({
@@ -295,7 +475,7 @@ function App() {
           teamName: selectedTeam,
         }),
       });
-      
+
       setUsername("");
       setSelectedTeam(null);
     }
@@ -304,7 +484,7 @@ function App() {
   const handleTap = useCallback(() => {
     const currentTime = Date.now();
 
-    if (isTapping) return;
+    if (isTapping || !isButtonEnabled || !gameStarted || gameEnded) return;
 
     if (currentTime - lastTapTime < 10) {
       return;
@@ -328,7 +508,7 @@ function App() {
     }, 250);
 
     return () => clearTimeout(tapDelay);
-  }, [stompClient, isConnected, selectedTeam, lastTapTime, isTapping]);
+  }, [stompClient, isConnected, selectedTeam, lastTapTime, isTapping, isButtonEnabled, gameStarted, gameEnded]);
 
   const handleUsernameSubmit = (e) => {
     e.preventDefault();
@@ -340,6 +520,18 @@ function App() {
 
   const handleUsernameChange = (e) => {
     setUsernameInput(e.target.value);
+  };
+
+  // Function to change timing settings
+  const changeButtonTiming = (newEnableTimeMs, newDisableTimeMs) => {
+    updateButtonTimings(newEnableTimeMs, newDisableTimeMs);
+  };
+
+  // Format time for display (MM:SS)
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (!username) {
@@ -375,15 +567,16 @@ function App() {
       <div className="team-selection-container">
         <div className="selection-card">
           <h1 className="welcome-heading">Welcome, {username}!</h1>
-          
+
           <h2 className="choose-team-heading">Choose Your Team</h2>
 
           <div className="team-buttons-container">
             <button
               onClick={() => handleJoinTeam("Team Blue")}
               disabled={disabledButtons["Team Blue"]}
-              className={`team-button blue-team ${disabledButtons["Team Blue"] ? "disabled" : ""
-                }`}
+              className={`team-button blue-team ${
+                disabledButtons["Team Blue"] ? "disabled" : ""
+              }`}
             >
               {disabledButtons["Team Blue"]
                 ? `Team Blue Full (${teamMembersCount}/${teamMembersCount})`
@@ -393,8 +586,9 @@ function App() {
             <button
               onClick={() => handleJoinTeam("Team Red")}
               disabled={disabledButtons["Team Red"]}
-              className={`team-button red-team ${disabledButtons["Team Red"] ? "disabled" : ""
-                }`}
+              className={`team-button red-team ${
+                disabledButtons["Team Red"] ? "disabled" : ""
+              }`}
             >
               {disabledButtons["Team Red"]
                 ? `Team Red Full (${teamMembersCount}/${teamMembersCount})`
@@ -405,7 +599,7 @@ function App() {
           <div className="team-selection-info">
             <p>
               Join a team to start tapping! First team to reach 75% of total
-              taps wins!
+              taps wins! If time runs out, the team with more than 50% wins!
             </p>
           </div>
         </div>
@@ -418,16 +612,14 @@ function App() {
 
   const gameState = calculateGameState();
   const gameOver = gameState.winner !== null;
-  const winnerTeam = gameState.winner === "blue" ? "Team Blue" : "Team Red";
+  const winnerMessage = gameState.winMessage || (gameState.winner === "blue" ? "Team Blue Wins!" : gameState.winner === "red" ? "Team Red Wins!" : "It's a Tie!");
 
   const blueTeamFull = teamCounts["Team Blue"] >= teamMembersCount;
   const redTeamFull = teamCounts["Team Red"] >= teamMembersCount;
   const bothTeamsFullAndReady = blueTeamFull && redTeamFull;
 
-  // Create a fixed size array to display team members including empty slots
   const teamMembersDisplay = Array(teamMembersCount).fill(null);
-  
-  // Fill in the array with actual team members
+
   teamMembers.forEach((member, index) => {
     if (index < teamMembersCount) {
       teamMembersDisplay[index] = member;
@@ -436,6 +628,16 @@ function App() {
 
   return (
     <div className="game-room-container">
+      {showCountdown && (
+        <div className="countdown-overlay">
+          <div className="countdown-popup">
+            <h2>Game Starting In</h2>
+            <div className="countdown-number">{countdownValue}</div>
+            <p>Get ready to tap!</p>
+          </div>
+        </div>
+      )}
+
       <div className="game-card">
         <div className="team-header" style={{ backgroundColor: teamColorMain }}>
           <h1 className="team-title">{selectedTeam} Game Room</h1>
@@ -444,62 +646,13 @@ function App() {
           </span>
         </div>
 
-        <div className="members-section">
-          <h2 className="section-title" style={{ color: teamColorMain }}>
-            Team Members
-          </h2>
-          <ul className="members-list">
-            {teamMembersDisplay.map((member, index) => {
-              return member ? (
-                <li
-                  key={member.id || `member-${index}`}
-                  className={`member-item ${member.username === username ? "current-user" : ""}`}
-                  style={{
-                    backgroundColor:
-                      member.username === username
-                        ? teamColorMain
-                        : `${teamColorMain}30`,
-                    color: member.username === username ? "white" : teamColorDark,
-                  }}
-                >
-                  {member.username}
-                  {member.username === username ? " (You)" : ""}
-                </li>
-              ) : (
-                <li key={`empty-${index}`} className="member-item empty-slot">
-                  Empty Slot
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-
-        <div className="tap-section">
-          <button
-            onClick={handleTap}
-            className="tap-button"
-            style={{
-              backgroundColor: teamColorMain,
-              border: `3px solid #D9B310`,
-              opacity:
-                gameOver || !bothTeamsFullAndReady || isTapping ? 0.6 : 1,
-              cursor:
-                gameOver || !bothTeamsFullAndReady || isTapping
-                  ? "not-allowed"
-                  : "pointer",
-            }}
-            disabled={gameOver || !bothTeamsFullAndReady || isTapping}
-          >
-            {gameOver
-              ? "GAME OVER"
-              : !bothTeamsFullAndReady
-                ? "WAITING FOR FULL TEAMS..."
-                : isTapping
-                  ? "TAPPING..."
-                  : "TAP!"}
-          </button>
-        </div>
-
+        {gameStarted && !gameOver && (
+          <div className="timer-section">
+            <h3 className="timer-label">Time Remaining:</h3>
+            <div className="timer-display">{formatTime(gameTimeLeft)}</div>
+          </div>
+        )}
+        
         <div className="progress-section">
           <h2 className="progress-title">Team Battle Progress</h2>
 
@@ -521,6 +674,7 @@ function App() {
 
                 <div className="win-marker left"></div>
                 <div className="win-marker right"></div>
+                <div className="center-marker" style={{ left: '50%' }}></div>
               </div>
 
               <div className="progress-percentages">
@@ -528,7 +682,8 @@ function App() {
                   {(() => {
                     if (gameState.totalValidTaps === 0) return "50%";
                     return `${Math.round(
-                      (gameState.blueValidTaps / gameState.totalValidTaps) * 100
+                      (gameState.blueValidTaps ** 1.2) * 100 / ((gameState.blueValidTaps ** 1.2) + (gameState.redValidTaps ** 1.2))
+                      // (gameState.blueValidTaps / gameState.totalValidTaps) * 100
                     )}%`;
                   })()}
                 </span>
@@ -536,7 +691,8 @@ function App() {
                   {(() => {
                     if (gameState.totalValidTaps === 0) return "50%";
                     return `${Math.round(
-                      (gameState.redValidTaps / gameState.totalValidTaps) * 100
+                      (gameState.redValidTaps ** 1.2) * 100 / ((gameState.blueValidTaps ** 1.2) + (gameState.redValidTaps ** 1.2))
+                      // (gameState.redValidTaps / gameState.totalValidTaps) * 100
                     )}%`;
                   })()}
                 </span>
@@ -547,32 +703,64 @@ function App() {
                 className="winner-announcement"
                 style={{
                   backgroundColor:
-                    gameState.winner === "blue" ? "#044C91" : "#8D153A",
+                    gameState.winner === "blue" ? "#044C91" : 
+                    gameState.winner === "red" ? "#8D153A" : "#555", // Gray for tie
                   animation: "pulse-background 1.5s infinite",
                 }}
               >
-                <h3>{winnerTeam} Wins!</h3>
+                <h3>{winnerMessage}</h3>
               </div>
             )}
           </div>
         </div>
         
-        <div className="leave-section" style={{ marginTop: "20px", textAlign: "center" }}>
-          <button 
+        <div className="tap-section">
+          <button
+            onClick={handleTap}
+            className="tap-button"
+            style={{
+              backgroundColor: teamColorMain,
+              border: `3px solid #D9B310`,
+              opacity:
+                gameOver || !bothTeamsFullAndReady || !isButtonEnabled || !gameStarted ? 0.6 : 1,
+              cursor:
+                gameOver || !bothTeamsFullAndReady || !isButtonEnabled || !gameStarted
+                  ? "not-allowed"
+                  : "pointer",
+            }}
+            disabled={gameOver || !bothTeamsFullAndReady || !isButtonEnabled || !gameStarted}
+          >
+            {gameOver
+              ? "GAME OVER"
+              : !bothTeamsFullAndReady
+              ? "WAITING FOR FULL TEAMS..."
+              : !gameStarted
+              ? "WAITING FOR GAME TO START..."
+              : !isButtonEnabled
+              ? "COOLDOWN..."
+              : "TAP NOW!"}
+          </button>
+        </div>
+
+        <div
+          className="leave-section"
+          style={{ marginTop: "20px", textAlign: "center" }}
+        >
+          <button
             onClick={handleLeaveTeam}
             className="leave-button"
             style={{
               backgroundColor: teamColorMain,
-              color: 'white',
-              border: 'none',
-              padding: '12px 24px',
-              borderRadius: '4px',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              width: '100%',
-              maxWidth: '200px'
+              color: "white",
+              border: "none",
+              padding: "12px 24px",
+              borderRadius: "4px",
+              fontSize: "16px",
+              fontWeight: "bold",
+              cursor: "pointer",
+              transition: "all 0.2s",
+              width: "100%",
+              maxWidth: "200px",
             }}
           >
             Leave Team

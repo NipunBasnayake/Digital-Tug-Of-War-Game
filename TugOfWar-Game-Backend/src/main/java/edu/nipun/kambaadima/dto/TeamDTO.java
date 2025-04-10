@@ -17,7 +17,7 @@ public class TeamDTO {
     private Map<String, Integer> teamCounts;
     private Map<String, Boolean> lockStatus;
     private int maxMembers;
-
+    
     public TeamDTO(String teamName) {
         this.teamName = teamName;
         this.members = new ArrayList<>();
@@ -26,7 +26,7 @@ public class TeamDTO {
         this.roomLocked = false;
         this.teamCounts = new HashMap<>();
         this.lockStatus = new HashMap<>();
-        this.maxMembers = 5; // Default to 5 members
+        this.maxMembers = 4;
     }
 
     public TeamDTO(String teamName, int maxMembers) {

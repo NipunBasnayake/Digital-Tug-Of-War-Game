@@ -75,7 +75,6 @@ public class GameWebSocketController {
             teamDTO.setTeamLockStatus(entry.getKey(), entry.getValue());
         }
 
-        // Set maxMembers for client information
         teamDTO.setMaxMembers(5);
 
         return teamDTO;

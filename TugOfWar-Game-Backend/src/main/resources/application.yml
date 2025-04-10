@@ -11,4 +11,4 @@ spring:
 # Game Configuration
 game:
   team:
-    maxSize: 2
+    maxSize: 1

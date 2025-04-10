@@ -273,6 +273,9 @@ function connectWebSocket() {
                 try {
                     const teamUpdate = JSON.parse(message.body);
 
+                    console.log(teamUpdate);
+                    
+
                     if (teamUpdate.tapCount !== undefined && teamUpdate.teamName && gameActive) {
                         if (teamUpdate.teamName === "Team Blue") {
                             blueTapCount = teamUpdate.tapCount;
