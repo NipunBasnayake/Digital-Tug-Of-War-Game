@@ -3,7 +3,7 @@ import { Client } from "@stomp/stompjs";
 import "./App.css";
 
 function App() {
-  const WS_URL = "604b-175-157-112-197.ngrok-free.app";
+  const WS_URL = "prepared-foxhound-prime.ngrok-free.app";
   const [teamMembersCount, setTeamMembersCount] = useState(1);        // Number of Team Members
 
   const [buttonEnableTime, setButtonEnableTime] = useState(3000);     // Button Enabled Time Duration
