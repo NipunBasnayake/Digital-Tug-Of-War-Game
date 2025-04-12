@@ -36,11 +36,11 @@ Digital Tug Of War is an interactive web-based game that simulates the classic t
 
 ## 📸 Screenshots
 
-![Player Interfaces](/screenshots/1.png)
+![Player Interfaces](/Screenshots/1.png)
 
-![Player Interfaces](/screenshots/2.png)
+![Player Interfaces](/Screenshots/2.png)
 
-![Results](/screenshots/3.png)
+![Results](/Screenshots/3.png)
 
 ## 👨‍💻 Contributors
 
